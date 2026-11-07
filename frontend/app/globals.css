@@ -1626,3 +1626,38 @@ label {
 .weather-day-temp {
   font-size: 0.9375rem;
 }
+
+.weather-summary-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+  margin: var(--space-6) 0 var(--space-3);
+}
+
+.weather-summary-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.weather-summary-head p {
+  margin: 0;
+}
+
+.weather-summary-foot {
+  margin: var(--space-3) 0 0;
+}
+
+.weather-context-note {
+  margin: var(--space-4) 0 0;
+}
+
+
+/* Toggle Switch Overrides */
+.ws-switch {
+  min-height: 1.55rem !important;
+  height: 1.55rem !important;
+  width: 2.75rem !important;
+  padding: 0 !important;
+}

@@ -28,9 +28,10 @@ the browser uses the public origin.
 
 | Route | What it does | Evidence |
 | --- | --- | --- |
-| `/` | Reports API reachability and explains the two separate outputs. | live smoke, build |
+| `/` | Reports API reachability, shows live weather context (current conditions, short forecast, source and fetch time) and explains the two separate outputs. Weather is context only and never becomes a risk score. | live smoke, build |
 | `/chat` | Conversation list: create, open and delete; empty and API-unreachable states. | live smoke, build |
 | `/chat/[conversationId]` | Thread with image upload, structured assessment replies, review requests, idempotent retry, demo badge and delete. | live smoke (upload → assessment → review), build |
+| `/weather` | Open-Meteo current conditions and a seven-day forecast for one location, with place search and browser geolocation. Missing values stay “—”; source and fetch time are shown. Context only, never a risk score. | live smoke, build |
 | `/outlook` | Independent map-layer states (verified, unverified, modelled risk, coverage, boundaries) fetched from `/v1/map/layers/*`; explicit “not configured” state, never a merged risk value. | live smoke, build |
 | `/review` | Honest “locked” state for the expert review portal; no fabricated cases. | live smoke, build |
 | `/admin` | Admin dashboard for the identity slice: staff sign-in + MFA, profile, account list/counts, provision staff, audited record view, role/status changes, retention and aggregate exports. Tokens stay in the tab's `sessionStorage`; unauthenticated, non-admin and expired states are explicit. | live smoke, build |

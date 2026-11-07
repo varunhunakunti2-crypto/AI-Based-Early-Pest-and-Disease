@@ -1,6 +1,23 @@
 import Link from "next/link";
 
+import { WeatherGlyph } from "@/components/weather-glyph";
 import { ApiError, getHealth } from "@/lib/api";
+import {
+  DEFAULT_PLACE,
+  WEATHER_SOURCE,
+  WeatherError,
+  describeWeatherCode,
+  fetchWeather,
+  placeLabel,
+  type WeatherReport,
+} from "@/lib/weather";
+import {
+  formatNumber,
+  formatTemperature,
+  localTime,
+  shortDate,
+  weekday,
+} from "@/lib/weather-format";
 
 export const dynamic = "force-dynamic";
 
@@ -9,18 +26,39 @@ export const metadata = {
 };
 
 export default async function HomePage() {
+  const [healthResult, weatherResult] = await Promise.allSettled([
+    getHealth(),
+    fetchWeather(DEFAULT_PLACE),
+  ]);
+
   let service: string | null = null;
   let failure: string | null = null;
 
-  try {
-    const health = await getHealth();
+  if (healthResult.status === "fulfilled") {
+    const health = healthResult.value;
     service = `${health.service} ${health.version} (${health.environment})`;
-  } catch (error) {
+  } else {
+    const error = healthResult.reason;
     failure =
       error instanceof ApiError
         ? `${error.status} ${error.problem?.code ?? "api_error"}`
         : "API unreachable";
   }
+
+  let weather: WeatherReport | null = null;
+  let weatherFailure: string | null = null;
+
+  if (weatherResult.status === "fulfilled") {
+    weather = weatherResult.value;
+  } else {
+    const error = weatherResult.reason;
+    weatherFailure =
+      error instanceof WeatherError
+        ? error.message
+        : "Weather could not be loaded for the default location.";
+  }
+
+  const condition = weather ? describeWeatherCode(weather.current.weatherCode) : null;
 
   return (
     <div className="page">
@@ -52,6 +90,118 @@ export default async function HomePage() {
         <p className="muted small">
           This panel reports platform reachability only. It does not report pest
           or disease risk.
+        </p>
+      </section>
+
+      <section className="card" aria-labelledby="weather-heading">
+        <div className="panel-header">
+          <h2 id="weather-heading">Weather context</h2>
+          <span className="badge badge-muted">
+            {placeLabel(weather?.place ?? DEFAULT_PLACE)}
+          </span>
+        </div>
+
+        {weather && condition ? (
+          <>
+            <div className="weather-current-main">
+              <span className="weather-glyph">
+                <WeatherGlyph name={condition.glyph} />
+              </span>
+              <div>
+                <p className="weather-temp">
+                  {formatTemperature(weather.current.temperature)}
+                </p>
+                <p className="weather-condition">{condition.label}</p>
+                <p className="small muted">
+                  As of {localTime(weather.current.time)} (local time)
+                  {weather.current.isDay === false ? " · night" : ""}
+                  {weather.current.apparentTemperature !== null
+                    ? ` · feels like ${formatTemperature(weather.current.apparentTemperature)}`
+                    : ""}
+                </p>
+              </div>
+            </div>
+
+            <dl className="weather-metrics">
+              <div className="weather-metric">
+                <dt>Humidity</dt>
+                <dd>{formatNumber(weather.current.humidity, "%")}</dd>
+              </div>
+              <div className="weather-metric">
+                <dt>Wind</dt>
+                <dd>{formatNumber(weather.current.windSpeed, " km/h")}</dd>
+              </div>
+              <div className="weather-metric">
+                <dt>Precipitation</dt>
+                <dd>{formatNumber(weather.current.precipitation, " mm")}</dd>
+              </div>
+              <div className="weather-metric">
+                <dt>Source</dt>
+                <dd>
+                  <a href={WEATHER_SOURCE.url} rel="noreferrer">
+                    {WEATHER_SOURCE.name}
+                  </a>
+                </dd>
+              </div>
+            </dl>
+
+            <div className="weather-summary-head">
+              <h3>Next days</h3>
+              <p className="small muted">
+                Fetched{" "}
+                <time dateTime={weather.fetchedAt} suppressHydrationWarning>
+                  {new Date(weather.fetchedAt).toLocaleTimeString("en-GB", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </time>
+                {" · "}
+                {WEATHER_SOURCE.licence}
+              </p>
+            </div>
+
+            <ul className="weather-days">
+              {weather.daily.slice(0, 4).map((day) => {
+                const dayCondition = describeWeatherCode(day.weatherCode);
+                return (
+                  <li key={day.date} className="weather-day">
+                    <p className="weather-day-name">{weekday(day.date)}</p>
+                    <p className="small muted">{shortDate(day.date)}</p>
+                    <span className="weather-glyph weather-glyph-small">
+                      <WeatherGlyph name={dayCondition.glyph} />
+                    </span>
+                    <p className="small">{dayCondition.label}</p>
+                    <p className="weather-day-temp">
+                      <strong>{formatTemperature(day.temperatureMax)}</strong>
+                      {" / "}
+                      {formatTemperature(day.temperatureMin)}
+                    </p>
+                    <p className="small muted">
+                      {formatNumber(day.precipitationProbability, "%")} rain ·{" "}
+                      {formatNumber(day.precipitationSum, " mm")}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <p className="small weather-summary-foot">
+              <Link href="/weather">Open the full seven-day forecast</Link> to
+              search another place or use your current location.
+            </p>
+          </>
+        ) : (
+          <p className="error" role="status">
+            {weatherFailure ?? "Weather is unavailable for the default location."}
+            {" "}
+            <Link href="/weather">Try the weather page</Link>.
+          </p>
+        )}
+
+        <p className="notice notice-warning small weather-context-note">
+          <span className="badge badge-muted">context only</span> Weather can
+          support scouting, but it is not a pest or disease risk score. Risk needs
+          crop, location, verified reports and an approved model.
         </p>
       </section>
 
