@@ -36,10 +36,15 @@ export default function ScanPage() {
   const [notes, setNotes] = useState("");
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsStatus, setGpsStatus] = useState("");
-  const [staged, setStaged] = useState<{ name: string; tone: number; size: string }[]>([]);
+  const [staged, setStaged] = useState<{ name: string; tone: number; size: string; url?: string }[]>([]);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [analysingId, setAnalysingId] = useState<string | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoStreamRef = useRef<HTMLVideoElement>(null);
+  const streamTrackRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
 
@@ -64,13 +69,97 @@ export default function ScanPage() {
     };
   }, []);
 
+  async function startCamera() {
+    setCameraError(null);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Camera API not supported or insecure context (requires localhost or HTTPS).");
+      }
+      
+      let stream: MediaStream | null = null;
+      try {
+        // Try back/environment camera first
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      } catch {
+        // If environment camera fails, fallback to any available camera (webcam)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
+      if (!stream) {
+        throw new Error("No video stream returned.");
+      }
+
+      streamTrackRef.current = stream;
+      setCameraActive(true);
+      setTimeout(() => {
+        if (videoStreamRef.current) {
+          videoStreamRef.current.srcObject = stream;
+          videoStreamRef.current.play().catch(() => {});
+        }
+      }, 100);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unable to access camera.";
+      setCameraError(msg);
+      // Do not automatically trigger file picker if user denied permission,
+      // show helpful guidance button instead so they can choose.
+    }
+  }
+
+  function stopCamera() {
+    if (streamTrackRef.current) {
+      streamTrackRef.current.getTracks().forEach((track) => track.stop());
+      streamTrackRef.current = null;
+    }
+    setCameraActive(false);
+  }
+
+  function captureFromCamera() {
+    if (!videoStreamRef.current) return;
+    const video = videoStreamRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    stopCamera();
+
+    const newCaptureItem = {
+      name: `camera-capture-${Date.now().toString().slice(-4)}.jpg`,
+      size: `${Math.round((dataUrl.length * 0.75) / 1024)} KB`,
+      tone: Math.floor(Math.random() * 8),
+      url: dataUrl,
+    };
+    setStaged((current) => [...current, newCaptureItem].slice(0, 6));
+    setSavedId(null);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (streamTrackRef.current) {
+        streamTrackRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
   function addFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const next = Array.from(files).map((file, index) => ({
-      name: file.name,
-      size: `${(file.size / 1024).toFixed(0)} KB`,
-      tone: (file.name.length + index) % 8,
-    }));
+    const next = Array.from(files).map((file, index) => {
+      const url = URL.createObjectURL(file);
+      return {
+        name: file.name,
+        size: `${(file.size / 1024).toFixed(0)} KB`,
+        tone: (file.name.length + index) % 8,
+        url,
+      };
+    });
     setStaged((current) => (mediaType === "video" ? next.slice(0, 1) : [...current, ...next].slice(0, 6)));
     setSavedId(null);
   }
@@ -105,6 +194,7 @@ export default function ScanPage() {
       notes,
       gps: gps ?? { lat: farm.lat, lng: farm.lng },
       imageTone: staged[0]?.tone ?? 3,
+      imageUrl: staged[0]?.url,
     });
     setSavedId(capture.id);
     setStaged([]);
@@ -115,10 +205,15 @@ export default function ScanPage() {
     }
   }
 
-  function analyse(captureId: string) {
-    const analysis = createAnalysis(captureId);
-    if (analysis) {
-      router.push(`/analysis?focus=${analysis.id}`);
+  async function analyse(captureId: string) {
+    setAnalysingId(captureId);
+    try {
+      const analysis = await createAnalysis(captureId);
+      if (analysis) {
+        router.push(`/analysis?focus=${analysis.id}`);
+      }
+    } finally {
+      setAnalysingId(null);
     }
   }
 
@@ -172,9 +267,36 @@ export default function ScanPage() {
           </div>
 
           <div className="ws-capture-stage">
-            {staged.length > 0 ? (
+            {cameraActive ? (
+              <div className="ws-camera-viewfinder" style={{ display: "grid", gap: "10px", textAlign: "center" }}>
+                <div style={{ position: "relative", width: "100%", maxWidth: "480px", margin: "0 auto", borderRadius: "12px", overflow: "hidden", background: "#000" }}>
+                  <video
+                    ref={videoStreamRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{ width: "100%", height: "auto", display: "block" }}
+                  />
+                  <div style={{ position: "absolute", inset: "20px", border: "2px dashed rgba(255,255,255,0.7)", borderRadius: "8px", pointerEvents: "none" }} />
+                </div>
+                <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+                  <button type="button" className="ws-button ws-button-primary" onClick={captureFromCamera}>
+                    <Icon name="camera" size={17} /> Take snapshot
+                  </button>
+                  <button type="button" className="ws-button ws-button-secondary" onClick={stopCamera}>
+                    <Icon name="close" size={16} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : staged.length > 0 ? (
               <div className="ws-capture-preview">
-                <PhotoTile tone={staged[0]?.tone ?? 2} mediaType={mediaType} label="Captured preview" size="lg" />
+                <PhotoTile
+                  tone={staged[0]?.tone ?? 2}
+                  mediaType={mediaType}
+                  label="Captured preview"
+                  size="lg"
+                  src={staged[0]?.url}
+                />
                 <div>
                   <strong>{staged.length} {mediaType === "video" ? "video" : "photo"}{staged.length === 1 ? "" : "s"} ready</strong>
                   <p className="ws-small ws-muted">{staged.map((item) => item.name).join(", ")}</p>
@@ -191,39 +313,70 @@ export default function ScanPage() {
                 <p className="ws-small ws-muted">
                   Hold steady in daylight, about 30 cm from the plant. Avoid shadows and background clutter.
                 </p>
+                {cameraError ? (
+                  <div style={{ background: "#fff2f0", border: "1px solid #ffccc7", borderRadius: "8px", padding: "8px 12px", marginTop: "8px", maxWidth: "420px" }}>
+                    <p className="ws-small" style={{ color: "#cf1322", fontWeight: 600, margin: 0 }}>
+                      Camera permission blocked by browser
+                    </p>
+                    <p className="ws-small" style={{ color: "#595959", margin: "4px 0 6px" }}>
+                      Click the camera/lock icon in your browser address bar (left of localhost:3000) and change <strong>Camera</strong> to <strong>Allow</strong>, then reload or click below.
+                    </p>
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                      <button type="button" className="ws-button ws-button-primary" style={{ padding: "4px 10px", fontSize: "0.8rem" }} onClick={startCamera}>
+                        Retry camera
+                      </button>
+                      <button type="button" className="ws-button ws-button-secondary" style={{ padding: "4px 10px", fontSize: "0.8rem" }} onClick={() => fileRef.current?.click()}>
+                        Choose image file
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
 
-            <div className="ws-capture-buttons">
-              <button type="button" className="ws-button ws-button-primary" onClick={() => fileRef.current?.click()}>
-                <Icon name="camera" size={17} /> {mediaType === "video" ? "Record video" : "Open camera"}
-              </button>
-              <button type="button" className="ws-button ws-button-secondary" onClick={() => videoRef.current?.click()}>
-                <Icon name="upload" size={16} /> {mediaType === "video" ? "Upload video" : "Upload from gallery"}
-              </button>
-              <button type="button" className="ws-button ws-button-ghost" onClick={() => fileRef.current?.click()}>
-                <Icon name="plus" size={16} /> Multiple images
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept={mediaType === "video" ? "video/*" : "image/*"}
-                capture={mediaType === "image" ? "environment" : undefined}
-                multiple={mediaType === "image"}
-                className="ws-hidden-input"
-                onChange={(event) => addFiles(event.target.files)}
-              />
-              <input
-                ref={videoRef}
-                type="file"
-                accept="video/*"
-                className="ws-hidden-input"
-                onChange={(event) => {
-                  setMediaType("video");
-                  addFiles(event.target.files);
-                }}
-              />
-            </div>
+            {!cameraActive ? (
+              <div className="ws-capture-buttons">
+                <button
+                  type="button"
+                  className="ws-button ws-button-primary"
+                  onClick={() => {
+                    if (mediaType === "video") {
+                      videoRef.current?.click();
+                    } else {
+                      startCamera();
+                    }
+                  }}
+                >
+                  <Icon name="camera" size={17} /> {mediaType === "video" ? "Record video" : "Open camera"}
+                </button>
+                <button type="button" className="ws-button ws-button-secondary" onClick={() => fileRef.current?.click()}>
+                  <Icon name="upload" size={16} /> {mediaType === "video" ? "Upload video" : "Upload from gallery"}
+                </button>
+                <button type="button" className="ws-button ws-button-ghost" onClick={() => fileRef.current?.click()}>
+                  <Icon name="plus" size={16} /> Multiple images
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept={mediaType === "video" ? "video/*" : "image/*"}
+                  capture={mediaType === "image" ? "environment" : undefined}
+                  multiple={mediaType === "image"}
+                  className="ws-hidden-input"
+                  onChange={(event) => addFiles(event.target.files)}
+                />
+                <input
+                  ref={videoRef}
+                  type="file"
+                  accept="video/*"
+                  capture="environment"
+                  className="ws-hidden-input"
+                  onChange={(event) => {
+                    setMediaType("video");
+                    addFiles(event.target.files);
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="ws-form">
@@ -300,8 +453,13 @@ export default function ScanPage() {
                   <strong>Observation saved{online ? " and queued for sync" : " offline"}</strong>
                   <span className="ws-small">You can analyse it now or wait for expert review.</span>
                 </div>
-                <button type="button" className="ws-button ws-button-primary" onClick={() => analyse(savedId)}>
-                  <Icon name="analysis" size={16} /> Analyse
+                <button
+                  type="button"
+                  className="ws-button ws-button-primary"
+                  disabled={analysingId === savedId}
+                  onClick={() => analyse(savedId)}
+                >
+                  <Icon name="analysis" size={16} /> {analysingId === savedId ? "Analysing…" : "Analyse"}
                 </button>
               </div>
             ) : null}
@@ -340,8 +498,13 @@ export default function ScanPage() {
                     {capture.analysisId ? (
                       <Link href={`/analysis?focus=${capture.analysisId}`} className="ws-link">Result</Link>
                     ) : (
-                      <button type="button" className="ws-link-button" onClick={() => analyse(capture.id)}>
-                        Analyse
+                      <button
+                        type="button"
+                        className="ws-link-button"
+                        disabled={analysingId === capture.id}
+                        onClick={() => analyse(capture.id)}
+                      >
+                        {analysingId === capture.id ? "Analysing…" : "Analyse"}
                       </button>
                     )}
                   </div>

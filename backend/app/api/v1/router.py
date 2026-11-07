@@ -14,6 +14,7 @@ from app.api.v1 import (
     assessments,
     auth,
     conversations,
+    detections,
     forecast,
     health,
     map,
@@ -59,6 +60,9 @@ if hasattr(forecast, "admin_router"):
 api_router.include_router(conversations.router)
 api_router.include_router(uploads.router)
 api_router.include_router(assessments.router)
+
+# Demo-labelled pretrained detections (isolated ml/serve process)
+api_router.include_router(detections.router)
 
 # Map
 api_router.include_router(map.router)

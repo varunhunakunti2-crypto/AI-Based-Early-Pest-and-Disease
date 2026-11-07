@@ -1,13 +1,55 @@
-# ML scaffold — reproducible pipeline, no model
+# ML scaffold — reproducible pipeline, no governed model
 
-> **Status: MACHINERY ONLY.** This folder proves the training/evaluation/promotion
-> plumbing is reproducible. It ships **no trained model, no real dataset and no
-> approved operating point**, and it makes no performance claim. The only data are
-> deterministic synthetic feature vectors, labelled `is_demo`/`synthetic` everywhere.
+> **Status: MACHINERY ONLY for the governed pipeline.** This folder proves the
+> training/evaluation/promotion plumbing is reproducible. It ships **no approved
+> trained model, no real dataset and no approved operating point**, and it makes
+> no performance claim. The only data in the governed pipeline are deterministic
+> synthetic feature vectors, labelled `is_demo`/`synthetic` everywhere.
 
 This is the Gate 3 training-pipeline scaffold. It complements the serving-side
 machinery in `backend/app/modules/assessments/` (quality gate, abstention decision,
 calibration, OOD, registry, inference, evaluation). Gate 3 is **not** closed.
+
+## Pretrained third-party detectors (demo only)
+
+Separately from the governed pipeline, this folder contains two wrappers around
+pretrained YOLO detectors hosted on Hugging Face:
+
+| Key | Package | Architecture | Classes | Weights |
+|---|---|---|---|---|
+| `pest` | `agroai_pest_detection/` | YOLO11s (IP102) | 102 | `Yashwanth1508/AgroAI-pest-detection` — `best.pt` (38 MB) |
+| `plant` | `plant_diseasedetection/` | YOLOv11x | 116 | `Ananthakrishnanmzen/PlantDiseaseDetection` — `PlantDiseaseDetection.pt` (457 MB) |
+
+They are **not** the governed `pest_ml` pipeline, their weights are not committed,
+and they are **demo-only**:
+
+- the class lists do not match the open D1a allowlist, and no mapping exists;
+- no calibration or operating point is approved;
+- `ultralytics` is **AGPL-3.0** (the model cards say MIT, but that covers the
+  weights, not the runtime);
+- the models are used outside their validated domain.
+
+Every output is labelled `is_demo: true` and every detection is marked
+`unverified_model_label`. Never present this as a diagnosis.
+
+Run the detectors directly:
+
+```bash
+# from ml/ — demo-labelled text or JSON
+..\backend\.venv\Scripts\python run_pretrained.py --model pest  --image leaf.jpg
+..\backend\.venv\Scripts\python run_pretrained.py --model plant --image leaf.jpg --json
+..\backend\.venv\Scripts\python run_pretrained.py --model both  --download-only
+```
+
+To serve them to the app, use the isolated HTTP service in `serve/` — it keeps
+the AGPL runtime out of the backend process. See `serve/README.md`.
+
+| Piece | Where |
+|---|---|
+| Demo-labelled CLI | `run_pretrained.py` |
+| Isolated inference service (`/health`, `/v1/detect`) | `serve/app.py` |
+| Regression tests with a fake detector (no torch) | `tests/test_serve.py` |
+| Backend HTTP client engine (`APP_CHAT_ENGINE=pretrained`) | `../backend/app/modules/conversations/pretrained_engine.py` |
 
 ## What exists
 

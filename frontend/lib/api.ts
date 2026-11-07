@@ -256,6 +256,24 @@ export async function uploadImage(file: File): Promise<UploadDescriptor> {
 }
 
 /**
+ * Run the pretrained YOLO detector on an already-uploaded image.
+ *
+ * Demo-only: the backend always returns `is_demo: true`, and candidate names
+ * carry an "unverified model label" marker until the taxonomy is approved. An
+ * `abstained` state is not a healthy verdict.
+ */
+export function detectImage(
+  uploadId: string,
+  model: "pest" | "plant" = "plant",
+): Promise<Assessment> {
+  return request<Assessment>("/v1/detections", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ upload_id: uploadId, model }),
+  });
+}
+
+/**
  * Ask a human expert to review an assistant assessment. This is an audited,
  * separate request and never changes the stored prediction.
  */

@@ -103,8 +103,8 @@ function AnalysisWorkspace() {
                 key={capture.id}
                 type="button"
                 className="ws-button ws-button-secondary"
-                onClick={() => {
-                  const analysis = createAnalysis(capture.id);
+                onClick={async () => {
+                  const analysis = await createAnalysis(capture.id);
                   if (analysis) {
                     setSelectedId(analysis.id);
                     setCompareOpen(false);

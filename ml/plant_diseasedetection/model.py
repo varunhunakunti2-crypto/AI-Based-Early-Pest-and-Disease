@@ -18,7 +18,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WEIGHTS_DIR = REPO_ROOT / "ml" / "plant_diseasedetection" / "weights"
 DEFAULT_HF_REPO = "Ananthakrishnanmzen/PlantDiseaseDetection"
-DEFAULT_WEIGHTS_FILENAME = "best.pt"
+DEFAULT_WEIGHTS_FILENAME = "PlantDiseaseDetection.pt"
 
 
 def _import_ultralytics():

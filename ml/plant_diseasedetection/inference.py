@@ -20,7 +20,7 @@ def detect_image(
     if detector is None:
         detector = load_detector()
 
-    results = detector.predict(str(image_path), conf=conf, verbose=False)
+    results = detector.predict(str(image_path), conf=conf)
     detections: list[dict] = []
     for result in results:
         boxes = result.boxes

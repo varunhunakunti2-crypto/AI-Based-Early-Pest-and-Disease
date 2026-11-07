@@ -77,6 +77,15 @@ class Settings(BaseSettings):
     chat_timeout_s: float = 30.0
     chat_max_image_side: int = 1024
 
+    # Pretrained YOLO detectors. They run in the isolated service in ``ml/serve``
+    # because ``ultralytics`` is AGPL-3.0; the backend reaches it over HTTP only.
+    # ``chat_engine=pretrained`` selects the client engine. Output is always
+    # demo-labelled until the D1a taxonomy and calibration are approved.
+    pretrained_inference_url: str = "http://127.0.0.1:8010"
+    pretrained_model: str = "plant"
+    pretrained_conf: float = 0.25
+    pretrained_timeout_s: float = 60.0
+
     # Chat image uploads. Local development storage only; a deployment replaces
     # this with object storage. No file is ever served without an owner check.
     media_root: str = "var/media"

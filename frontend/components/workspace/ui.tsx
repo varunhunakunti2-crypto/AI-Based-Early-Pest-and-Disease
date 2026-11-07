@@ -414,12 +414,27 @@ export function PhotoTile({
   label,
   mediaType = "image",
   size = "md",
+  src,
 }: {
   tone: number;
   label: string;
   mediaType?: "image" | "video";
   size?: "sm" | "md" | "lg";
+  src?: string;
 }) {
+  if (src) {
+    return (
+      <div className={`ws-photo ws-photo-${size} ws-photo-custom`} role="img" aria-label={label} style={{ overflow: "hidden", position: "relative" }}>
+        {mediaType === "video" ? (
+          <video src={src} style={{ width: "100%", height: "100%", objectFit: "cover" }} controls playsInline />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element -- blob/data URL from capture.
+          <img src={src} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={`ws-photo ws-photo-${size} ws-tone-${Math.abs(tone) % 8}`} role="img" aria-label={label}>
       <svg viewBox="0 0 120 90" aria-hidden="true">

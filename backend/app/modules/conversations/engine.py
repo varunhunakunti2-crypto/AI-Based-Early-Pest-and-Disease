@@ -483,4 +483,8 @@ def get_assessment_engine() -> AssessmentEngine:
         return DemoAssessmentEngine()
     if name in {"openai", "openai_compatible", "openai-compatible", "compatible"}:
         return OpenAICompatibleAssessmentEngine(settings)
+    if name in {"pretrained", "yolo", "yolo_pretrained", "yolo-pretrained"}:
+        from app.modules.conversations.pretrained_engine import PretrainedAssessmentEngine
+
+        return PretrainedAssessmentEngine(settings)
     return UnavailableAssessmentEngine()

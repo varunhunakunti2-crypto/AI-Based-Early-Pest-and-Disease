@@ -145,6 +145,7 @@ export interface Analysis {
   isDemo: boolean;
   imageTone: number;
   notes: string;
+  imageUrl?: string;
 }
 
 export interface Capture {
@@ -161,6 +162,7 @@ export interface Capture {
   syncState: SyncState;
   imageTone: number;
   analysisId: string | null;
+  imageUrl?: string;
 }
 
 export interface Inspection {

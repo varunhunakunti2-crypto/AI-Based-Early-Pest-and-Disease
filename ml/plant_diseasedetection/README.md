@@ -37,9 +37,10 @@ for r in results:
 
 ## Weight files
 
-Pre-trained weights (`best.pt`) are fetched automatically from Hugging Face on first
-load via `ultralytics` / `huggingface_hub`. To bundle weights locally, place `best.pt`
-(and any other `.pt`) in `ml/plant_diseasedetection/weights/`.
+Pre-trained weights (`PlantDiseaseDetection.pt`) are fetched automatically from
+Hugging Face on first load via `ultralytics` / `huggingface_hub`. To bundle weights
+locally, place `PlantDiseaseDetection.pt` (and any other `.pt`) in
+`ml/plant_diseasedetection/weights/`.
 
 ```
 ml/plant_diseasedetection/

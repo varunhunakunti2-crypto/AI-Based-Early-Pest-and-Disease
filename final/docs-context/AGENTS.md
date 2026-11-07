@@ -12,12 +12,16 @@ optional OpenAI-compatible vision adapter, review requests; Alembic
 bounded decode, frame sampling, `demo-motion-0.1` detector, `bytetrack-lite-0.1`
 tracker, per-frame assessments, non-diagnostic summary; Alembic
 `0003_video_persistence`), and the §5.2 identity backend slice (in memory: OTP,
-staff MFA, five roles, consent, privacy, audit). No real model is connected by
-default; demo paths are labelled, the provider adapter is mock- and local-stub
-tested (no vendor call), the shipped video detector is a demo heuristic, and
-identity state is lost on restart. A **synthetic-only ML scaffold** exists in `ml/`
-(manifest contract, grouped splits, deterministic baseline, backend-harness
-evaluation, fail-closed promotion, model card; 23 tests) but it ships no trained
+staff MFA, five roles, consent, privacy, audit). The default photo path is still the
+labelled demo engine; the two pretrained YOLO detectors in `ml/` are wired as an
+opt-in, **demo-only** path (isolated `ml/serve` service + `APP_CHAT_ENGINE=pretrained`
++ `POST /v1/detections`) so `ultralytics` (AGPL-3.0) stays out of the backend; raw
+model labels are shown as unverified and no D1a mapping or calibration exists. Demo
+paths are labelled, the provider adapter is mock- and local-stub tested (no vendor
+call), the shipped video detector is a demo heuristic, and identity state is lost on
+restart. A **synthetic-only ML scaffold** exists in `ml/` (manifest contract, grouped
+splits, deterministic baseline, backend-harness evaluation, fail-closed promotion,
+model card; 29 tests including the inference service) but it ships no approved trained
 image model, real dataset, calibration artefact or operating point. A
 **synthetic-fixture forecast rules harness** exists in
 `backend/app/modules/forecast/rules.py` with 21 tests proving input sensitivity,
@@ -27,7 +31,7 @@ mobile client adds photo capture and a persisted offline queue; `flutter analyze
 is clean and 14 tests pass, the `android/` and `ios/` runners are committed, a debug
 APK builds, and an emulator smoke covered gallery capture → upload → assessment →
 airplane-mode queueing → reconnect flush. Real-device camera and iOS remain
-unverified. **Last updated:** 2026-11-06
+unverified. **Last updated:** 2026-11-07
 
 ---
 
@@ -184,7 +188,7 @@ paths are in each agent's `README.md`.
 
 | Task | Command | Last result |
 |---|---|---|
-| Backend tests | `cd backend && .venv\Scripts\python -m pytest` | 375 passed |
+| Backend tests | `cd backend && .venv\Scripts\python -m pytest` | 392 passed |
 | Backend lint | `cd backend && .venv\Scripts\python -m ruff check app tests` | clean |
 | Backend format check | `cd backend && .venv\Scripts\python -m ruff format --check app tests` | clean (141 files formatted) |
 | Migration history | `cd backend && .venv\Scripts\python -m alembic history` | `0001_baseline`, `0002_chat_persistence`, `0003_video_persistence` |
@@ -195,7 +199,7 @@ paths are in each agent's `README.md`.
 | Web lint | `cd frontend && npm run lint` | pass |
 | Web build | `cd frontend && npm run build` | pass; 17 routes |
 | Web chat smoke | `uvicorn` + `next start`, then upload a photo, send it, request review, open the thread and delete | pass; upload → `demo-chat-0.1` assessment → persisted review → preview byte-match → 415 rejection; list, thread, demo badge, delete and empty state observed |
-| ML scaffold tests | `cd ml && ..\backend\.venv\Scripts\python -m pytest` | 23 passed (synthetic fixture only) |
+| ML scaffold tests | `cd ml && ..\backend\.venv\Scripts\python -m pytest` | 29 passed (synthetic fixture + fake-detector service; no torch) |
 | ML scaffold lint | `cd ml && ..\backend\.venv\Scripts\python -m ruff check .` | pass |
 | ML scaffold format check | `cd ml && ..\backend\.venv\Scripts\python -m ruff format --check .` | pass |
 | ML scaffold run | `cd ml && ..\backend\.venv\Scripts\python -m pest_ml.pipeline` | pass; artefacts under `ml/artifacts` (git-ignored), status `evaluated` only |

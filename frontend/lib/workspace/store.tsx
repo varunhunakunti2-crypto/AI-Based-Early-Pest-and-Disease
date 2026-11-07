@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { detectImage, uploadImage, type Assessment } from "@/lib/api";
+
 import { seedState } from "./seed";
 import type {
   Analysis,
@@ -65,6 +67,7 @@ interface NewCaptureInput {
   notes: string;
   gps: { lat: number; lng: number };
   imageTone: number;
+  imageUrl?: string;
 }
 
 interface NewInspectionInput {
@@ -107,7 +110,7 @@ interface WorkspaceContextValue {
   updatePlant: (plantId: string, patch: Partial<Plant>) => void;
   addCapture: (input: NewCaptureInput) => Capture;
   syncCaptures: () => void;
-  createAnalysis: (captureId: string) => Analysis | null;
+  createAnalysis: (captureId: string) => Promise<Analysis | null>;
   requestVerification: (analysisId: string) => void;
   resolveReview: (analysisId: string, input: ReviewInput) => void;
   newThread: (title: string) => string;
@@ -437,6 +440,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       syncState: "queued",
       imageTone: input.imageTone,
       analysisId: null,
+      imageUrl: input.imageUrl,
     };
     setState((current) => ({
       ...current,
@@ -466,7 +470,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const createAnalysis = useCallback<WorkspaceContextValue["createAnalysis"]>((captureId) => {
+  const createAnalysis = useCallback<WorkspaceContextValue["createAnalysis"]>(async (captureId) => {
     const capture = state.captures.find((item) => item.id === captureId);
     if (!capture) {
       return null;
@@ -475,6 +479,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const group = state.cropGroups.find((item) => item.id === capture.subjectId);
     const crop = group?.crop ?? "Tomato";
     const video = capture.mediaType === "video";
+
+    // Run the real pretrained detector when the capture has image bytes. The
+    // result is always demo-labelled by the API; an abstention is not a healthy
+    // verdict and must never fall back to an invented template diagnosis.
+    const attempted = !video && Boolean(capture.imageUrl);
+    let detection: Assessment | null = null;
+    if (attempted && capture.imageUrl) {
+      try {
+        const blob = await fetch(capture.imageUrl).then((response) => response.blob());
+        const file = new File([blob], "capture.jpg", {
+          type: blob.type || "image/jpeg",
+        });
+        const uploaded = await uploadImage(file);
+        detection = await detectImage(uploaded.upload_id, "plant");
+      } catch {
+        detection = null;
+      }
+    }
+    const primary = detection?.state === "assessed" ? detection.candidates[0] : undefined;
+    const modelAlternatives =
+      detection?.state === "assessed"
+        ? detection.candidates.slice(1).map((candidate) => ({
+            label: candidate.display_name ?? candidate.label,
+            confidence: Math.round(candidate.score * 100),
+          }))
+        : [];
+
     const templates: Record<
       string,
       Pick<Analysis, "pest" | "disease" | "category" | "symptoms" | "causes" | "alternatives" | "nextSteps" | "severity">
@@ -539,35 +570,67 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       mediaType: capture.mediaType,
       plantPart: capture.plantPart,
       createdAt: now(),
-      modelVersion: video ? "video-0.2.0" : "photo-0.3.1",
-      pest: video ? null : template.pest,
-      disease: video ? "Possible nutrient deficiency" : template.disease,
-      category: video ? "nutrient" : template.category,
-      symptoms: video
-        ? ["Variable leaf colour across frames", "No clear fungal lesion in sampled frames"]
-        : template.symptoms,
-      affectedParts: video ? ["leaf", "whole_plant"] : [capture.plantPart, "leaf"],
-      severity: video ? "low" : (template.severity as Severity),
-      confidenceBand: video ? "low" : "medium",
-      confidenceScore: video ? 52 : 69,
+      modelVersion: attempted
+        ? (detection?.model_version ?? "pretrained-yolo-0.1")
+        : video
+          ? "video-0.2.0"
+          : "photo-0.3.1",
+      pest: null,
+      disease: attempted
+        ? (primary?.display_name ?? primary?.label ?? null)
+        : video
+          ? "Possible nutrient deficiency"
+          : template.disease,
+      category: attempted ? "uncertain" : video ? "nutrient" : template.category,
+      symptoms: attempted
+        ? []
+        : video
+          ? ["Variable leaf colour across frames", "No clear fungal lesion in sampled frames"]
+          : template.symptoms,
+      affectedParts: attempted
+        ? [capture.plantPart]
+        : video
+          ? ["leaf", "whole_plant"]
+          : [capture.plantPart, "leaf"],
+      severity: attempted ? "none" : video ? "low" : (template.severity as Severity),
+      confidenceBand: attempted ? "not_calibrated" : video ? "low" : "medium",
+      confidenceScore: attempted
+        ? primary
+          ? Math.round(primary.score * 100)
+          : 0
+        : video
+          ? 52
+          : 69,
       calibrated: false,
-      causes: video
+      causes: attempted ? [] : video
         ? ["Insufficient close-up frames", "Possible nutrient or water stress"]
         : template.causes,
-      alternatives: video
-        ? [{ label: "Waterlogging stress", confidence: 22 }]
-        : template.alternatives,
-      nextSteps: video
-        ? [
-            "Capture 10-second close-ups of affected leaves",
-            "Take a soil sample if the patch is uniform",
-            "Request expert review before adding nutrients",
-          ]
-        : template.nextSteps,
+      alternatives: attempted
+        ? modelAlternatives
+        : video
+          ? [{ label: "Waterlogging stress", confidence: 22 }]
+          : template.alternatives,
+      nextSteps: attempted
+        ? primary
+          ? [
+              "Retake the same plant in 5 days",
+              "Request expert verification before any treatment decision",
+            ]
+          : [
+              "The model found no confident match. Retake in good light or request expert review.",
+            ]
+        : video
+          ? [
+              "Capture 10-second close-ups of affected leaves",
+              "Take a soil sample if the patch is uniform",
+              "Request expert review before adding nutrients",
+            ]
+          : template.nextSteps,
       reviewStatus: "not_requested",
       isDemo: true,
       imageTone: capture.imageTone,
       notes: capture.notes,
+      imageUrl: capture.imageUrl,
     };
     setState((current) => ({
       ...current,
@@ -579,7 +642,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         {
           id: newId("notif"),
           title: "Photo assessment ready",
-          body: `${analysis.subjectLabel}: possible ${analysis.pest ?? analysis.disease}. This is assistive, not a diagnosis.`,
+          body: analysis.pest ?? analysis.disease
+            ? `${analysis.subjectLabel}: possible ${analysis.pest ?? analysis.disease}. This is assistive, not a diagnosis.`
+            : `${analysis.subjectLabel}: no confident match. This is assistive, not a diagnosis.`,
           kind: "review",
           at: now(),
           read: false,

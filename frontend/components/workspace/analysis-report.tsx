@@ -60,7 +60,13 @@ export function AnalysisReport({
   return (
     <article className={compact ? "ws-report ws-report-compact" : "ws-report"}>
       <div className="ws-report-media">
-        <PhotoTile tone={analysis.imageTone} mediaType={analysis.mediaType} label={`${analysis.subjectLabel} capture`} size="lg" />
+        <PhotoTile
+          tone={analysis.imageTone}
+          mediaType={analysis.mediaType}
+          label={`${analysis.subjectLabel} capture`}
+          size="lg"
+          src={analysis.imageUrl}
+        />
         <div className="ws-report-media-meta">
           <span className="ws-chip">{analysis.mediaType === "video" ? "Video" : "Photo"}</span>
           <span className="ws-chip">{partLabel(analysis.plantPart)}</span>

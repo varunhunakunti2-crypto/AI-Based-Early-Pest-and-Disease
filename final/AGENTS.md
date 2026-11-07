@@ -25,15 +25,18 @@ mock- and local-stub-tested OpenAI-compatible vision adapter + review requests, 
 decode, deterministic sampling, `demo-motion-0.1` detector, `bytetrack-lite-0.1`
 tracker, per-frame assessments, non-diagnostic summary, Alembic
 `0003_video_persistence`), and the **§5.2 identity backend slice** (phone OTP, staff
-MFA, five roles, consent, privacy, audit — in memory). No real model is connected by
-default, the shipped video detector is a heuristic rather than a pest detector, and
-identity state is not durable; the web app builds and its chat flow passed a live
-upload → assessment → review smoke test, while the mobile client adds photo capture
+MFA, five roles, consent, privacy, audit — in memory). The default photo path is the
+labelled demo engine; two pretrained YOLO detectors are wired as an opt-in **demo-only**
+path through the isolated `ml/serve` service and `POST /v1/detections`, keeping
+`ultralytics` (AGPL-3.0) out of the backend, and show raw labels as unverified with no
+D1a mapping or calibration. The shipped video detector is a heuristic rather than a pest
+detector, and identity state is not durable; the web app builds and its chat flow passed
+a live upload → assessment → review smoke test, while the mobile client adds photo capture
 and a persisted offline queue, with `flutter analyze` clean and 14 tests passing
 (platform runners committed, debug APK built and an emulator smoke passed; real-device
 camera and iOS unverified). A synthetic-only
 ML scaffold in `ml/` proves the manifest → grouped split → train → evaluate →
-promotion plumbing (23 tests) but ships no trained image model, real dataset or
+promotion plumbing (29 tests) but ships no approved trained image model, real dataset or
 operating point. A deterministic forecast rules harness in
 `backend/app/modules/forecast/rules.py` is covered by 21 synthetic-fixture tests
 (input sensitivity, snapshot reproducibility, no-score refusal), but it uses demo
