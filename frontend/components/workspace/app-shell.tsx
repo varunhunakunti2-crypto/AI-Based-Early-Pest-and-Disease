@@ -8,6 +8,7 @@ import { translate, type NavKey } from "@/lib/i18n";
 import { useWorkspace } from "@/lib/workspace/store";
 import type { Language, Role } from "@/lib/workspace/types";
 
+import { FloatingChatbot } from "./floating-chatbot";
 import { Icon, type IconName } from "./ui";
 
 interface NavItem {
@@ -399,6 +400,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </footer>
       </div>
+
+      <FloatingChatbot />
     </div>
   );
 }
