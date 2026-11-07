@@ -13,6 +13,12 @@ opencv-python-headless>=4.10,<6.0
 argon2-cffi>=23,<26
 PyJWT>=2,<3
 pyotp>=2.9,<3
+shapely>=2.0,<3.0
+
+# H3 hexagonal geospatial indexing (optional - requires C compiler to build from source).
+# Pure-Python fallback is provided in backend/app/geo/h3_utils.py.
+# Install on deployment targets with: pip install h3
+# h3>=4.0,<5.0
 
 # Development and test tooling (installed in dev/CI only).
 pytest>=8.0,<9.0

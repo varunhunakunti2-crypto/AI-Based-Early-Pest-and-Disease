@@ -2256,3 +2256,64 @@
   .ws-chat-widget-action,
   .ws-chat-widget-send { transition: none; }
 }
+
+/* H3 GIS Map container */
+.ws-map-container {
+  position: relative;
+  height: 520px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-radius-card);
+  overflow: hidden;
+  background: #eef1eb;
+}
+
+/* Map controls sidebar */
+.ws-map-sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Intelligence panel */
+.ws-intelligence-panel {
+  position: relative;
+}
+
+.ws-panel-body {
+  padding: 0 18px 18px;
+}
+
+/* Stack layout */
+.ws-stack {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+/* Loading spinner */
+.ws-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+/* Error state */
+.ws-error {
+  color: #b42318;
+  padding: 12px;
+  background: #fdecea;
+  border: 1px solid #b42318;
+  border-radius: var(--ws-radius-control);
+}
+
+/* Map popup custom styling */
+.leaflet-popup-content-wrapper {
+  border-radius: var(--ws-radius-card);
+  border: 1px solid var(--ws-line);
+}
+
+.leaflet-popup-close-button {
+  border-radius: var(--ws-radius-control);
+}

@@ -1,7 +1,0 @@
-site_id,district,taluk,hobli,arm,matched_pair,tomato_area_band,verification_capacity,boundary_version,status,notes
-PILOT-H01,Kolar,TBD,TBD,intervention,P1,TBD,2 can_confirm holders required,KA-ADMIN-v1,candidate,Name and code confirmed at MoU
-PILOT-H02,Kolar,TBD,TBD,control,P1,TBD,baseline advisory only,KA-ADMIN-v1,candidate,Name and code confirmed at MoU
-PILOT-H03,Chikkaballapura,TBD,TBD,intervention,P2,TBD,2 can_confirm holders required,KA-ADMIN-v1,candidate,Name and code confirmed at MoU
-PILOT-H04,Chikkaballapura,TBD,TBD,control,P2,TBD,baseline advisory only,KA-ADMIN-v1,candidate,Name and code confirmed at MoU
-PILOT-H05,Bengaluru Rural,TBD,TBD,intervention,P3,TBD,2 can_confirm holders required,KA-ADMIN-v1,candidate,Name and code confirmed at MoU
-PILOT-H06,Bengaluru Rural,TBD,TBD,control,P3,TBD,baseline advisory only,KA-ADMIN-v1,candidate,Name and code confirmed at MoU

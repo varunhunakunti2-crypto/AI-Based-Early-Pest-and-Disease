@@ -41,6 +41,12 @@ export type IconName =
   | "water"
   | "sun"
   | "shield"
+  | "alert-triangle"
+  | "bug"
+  | "cloud"
+  | "clipboard"
+  | "refresh"
+  | "fullscreen"
   | "menu";
 
 const paths: Record<IconName, ReactNode> = {
@@ -235,6 +241,24 @@ const paths: Record<IconName, ReactNode> = {
     </>
   ),
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+  "alert-triangle": (
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+  ),
+  bug: (
+    <path d="M14 5a4 4 0 0 1 4 4 2 2 0 0 0 4 4 4 4 0 0 1-4 4 2 2 0 0 0-4 4 4 4 0 0 1-4-4 2 2 0 0 0-4-4 4 4 0 0 1 4-4 2 2 0 0 0 4-4ZM9 9a1 1 0 0 1-1-1V5a1 1 0 0 1 2 0v3a1 1 0 0 1-1 1Zm6 0a1 1 0 0 1-1-1V5a1 1 0 0 1 2 0v3a1 1 0 0 1-1 1Z" />
+  ),
+  cloud: (
+    <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 5.35 8.04 2 10.58 2 15a8 8 0 0 0 16 0c0-1.41-.43-2.76-1.14-3.94ZM15 14a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1Z" />
+  ),
+  clipboard: (
+    <path d="M8 12h8c0 1.1 0 2-.5 2.5 0 0-.5.5-1 .5H9c-.5 0-1-.5-1-.5C8 14 8 13.1 8 12ZM3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Z" />
+  ),
+  refresh: (
+    <path d="M23 4v4a10 10 0 0 1-3.49 7.51 10 10 0 0 1-11.02-2.49A10 10 0 0 1 3 15.49V20a10 10 0 0 1 3.49-7.51 10 10 0 0 1 11.02 2.49A10 10 0 0 1 21 10.49V6a1 1 0 0 1 2 0Z" />
+  ),
+  fullscreen: (
+    <path d="M8 3H5a2 2 0 0 0-2 2v3M21 3h-3a2 2 0 0 0-2 2v3M3 21h3a2 2 0 0 0 2-2v-3M18 21h3a2 2 0 0 0 2-2v-3" />
+  ),
 };
 
 export function Icon({
@@ -595,5 +619,35 @@ export function Segmented<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+export function Button({
+  children,
+  variant = "solid",
+  size = "md",
+  disabled = false,
+  onClick,
+  type = "button",
+  style,
+}: {
+  children?: React.ReactNode;
+  variant?: "solid" | "outline" | "ghost" | "danger";
+  size?: "sm" | "md" | "lg";
+  disabled?: boolean;
+  onClick?: () => void;
+  type?: "button" | "submit" | "reset";
+  style?: React.CSSProperties;
+}) {
+  return (
+    <button
+      type={type}
+      disabled={disabled}
+      onClick={onClick}
+      style={style}
+      className={`ws-button ws-button-${variant} ws-button-${size}${disabled ? " ws-button-disabled" : ""}`}
+    >
+      {children}
+    </button>
   );
 }

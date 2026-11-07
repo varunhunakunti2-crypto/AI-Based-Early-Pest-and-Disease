@@ -542,3 +542,627 @@ export function exportAggregates(
     body: JSON.stringify({ purpose, row_limit: rowLimit }),
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* H3 Hexagonal Grid                                                  */
+/* ------------------------------------------------------------------ */
+
+export interface H3CellInfo {
+  cell_id: string;
+  resolution: number;
+  center_lat: number;
+  center_lng: number;
+  area_m2: number;
+  boundary: number[][];
+}
+
+export interface H3NeighboursResponse {
+  cell_id: string;
+  neighbours: H3CellInfo[];
+  count: number;
+}
+
+export interface H3GridRequest {
+  lat_min: number;
+  lng_min: number;
+  lat_max: number;
+  lng_max: number;
+  resolution?: number;
+}
+
+export interface H3GridResponse {
+  cells: H3CellInfo[];
+  count: number;
+}
+
+export interface FarmAssignmentRequest {
+  farm_id: string;
+  geo_code: string;
+  lat: number;
+  lng: number;
+  resolution?: number;
+  is_primary?: boolean;
+}
+
+export interface FarmAssignmentResponse {
+  assignment_id: string;
+  farm_id: string;
+  h3_cell_id: string;
+  resolution: number;
+  is_primary: boolean;
+}
+
+export interface CellObservationsResponse {
+  h3_cell_id: string;
+  total_observations: number;
+  verified: number;
+  pending_review: number;
+  rejected: number;
+  unique_farms: number;
+  crop_targets: Record<string, { count: number; verified: number }>;
+}
+
+export interface CellHotspot {
+  hotspot_id: string;
+  target_type: string;
+  target_code: string;
+  crop_code: string | null;
+  classification: string;
+  score: number;
+  total_reports: number;
+  unique_affected_farms: number;
+  verified_farms: number;
+  calculated_at: string;
+}
+
+export interface CellHotspotsResponse {
+  cell_id: string;
+  hotspots: CellHotspot[];
+  count: number;
+}
+
+export function getCell(cellId: string, token: string): Promise<H3CellInfo> {
+  return request<H3CellInfo>(`/v1/hexagons/cells/${cellId}`, {
+    headers: authHeaders(token),
+  });
+}
+
+export function getCellNeighbours(
+  cellId: string,
+  k: number,
+  token: string,
+): Promise<H3NeighboursResponse> {
+  const query = new URLSearchParams({ k: String(k) });
+  return request<H3NeighboursResponse>(
+    `/v1/hexagons/cells/${cellId}/neighbours?${query}`,
+    { headers: authHeaders(token) },
+  );
+}
+
+export function getCellParent(
+  cellId: string,
+  token: string,
+  resolution?: number,
+): Promise<{ cell_id: string; parent: H3CellInfo }> {
+  const query = resolution ? new URLSearchParams({ resolution: String(resolution) }) : new URLSearchParams();
+  return request<{ cell_id: string; parent: H3CellInfo }>(
+    `/v1/hexagons/cells/${cellId}/parent?${query}`,
+    { headers: authHeaders(token) },
+  );
+}
+
+export function getCellChildren(
+  cellId: string,
+  token: string,
+  resolution?: number,
+): Promise<{ cell_id: string; children: H3CellInfo[]; count: number }> {
+  const query = resolution ? new URLSearchParams({ resolution: String(resolution) }) : new URLSearchParams();
+  return request<{ cell_id: string; children: H3CellInfo[]; count: number }>(
+    `/v1/hexagons/cells/${cellId}/children?${query}`,
+    { headers: authHeaders(token) },
+  );
+}
+
+export function generateGrid(
+  payload: H3GridRequest,
+  token: string,
+): Promise<H3GridResponse> {
+  return request<H3GridResponse>("/v1/hexagons/cells/grid", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function cellFromCoordinates(
+  lat: number,
+  lng: number,
+  token: string,
+  resolution?: number,
+): Promise<H3CellInfo> {
+  const body: Record<string, unknown> = { lat, lng };
+  if (resolution !== undefined) body.resolution = resolution;
+  return request<H3CellInfo>("/v1/hexagons/cells/from-coordinates", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(body),
+  });
+}
+
+export function assignFarmToCell(
+  payload: FarmAssignmentRequest,
+  token: string,
+): Promise<FarmAssignmentResponse> {
+  return request<FarmAssignmentResponse>("/v1/hexagons/farms/assign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getCellObservations(
+  cellId: string,
+  token: string,
+  resolution?: number,
+): Promise<CellObservationsResponse> {
+  const query = resolution ? new URLSearchParams({ resolution: String(resolution) }) : new URLSearchParams();
+  return request<CellObservationsResponse>(
+    `/v1/hexagons/cells/${cellId}/observations?${query}`,
+    { headers: authHeaders(token) },
+  );
+}
+
+export function getCellHotspots(
+  cellId: string,
+  token: string,
+  resolution?: number,
+): Promise<CellHotspotsResponse> {
+  const query = resolution ? new URLSearchParams({ resolution: String(resolution) }) : new URLSearchParams();
+  return request<CellHotspotsResponse>(
+    `/v1/hexagons/cells/${cellId}/hotspots?${query}`,
+    { headers: authHeaders(token) },
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Inspection Tasks                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface InspectionTaskSummary {
+  task_id: string;
+  h3_cell_id: string;
+  crop_code: string;
+  target_code: string;
+  task_type: string;
+  priority: string;
+  status: string;
+  assignment_type: string;
+  deadline: string | null;
+  suspected_issue: string | null;
+  created_at: string;
+}
+
+export interface TaskCreateInput {
+  h3_cell_id: string;
+  crop_code: string;
+  target_code: string;
+  task_type:
+    | "hotspot_verification"
+    | "routine_scouting"
+    | "recovery_inspection"
+    | "expert_review";
+  priority?: "low" | "moderate" | "high" | "urgent";
+  deadline_hours?: number;
+  suspected_issue?: string;
+  crop_growth_stage?: string;
+  inspection_instructions?: string;
+  max_distance_km?: number;
+  required_expertise?: string[];
+  assignment_type?: "automatic" | "voluntary";
+}
+
+export interface EligibleUser {
+  user_id: string;
+  distance_km: number | null;
+  current_workload: number;
+  max_concurrent_tasks: number;
+  completion_rate: number;
+  expertise_areas: string[];
+  crop_experience: string[];
+  has_availability: boolean;
+  is_available: boolean;
+}
+
+export interface AvailableTask extends InspectionTaskSummary {
+  distance_km: number | null;
+}
+
+export function createInspectionTask(
+  payload: TaskCreateInput,
+  token: string,
+): Promise<InspectionTaskSummary> {
+  return request<InspectionTaskSummary>("/v1/tasks/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listAvailableTasks(
+  token: string,
+  limit = 50,
+): Promise<AvailableTask[]> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  return request<AvailableTask[]>(`/v1/tasks/available?${query}`, {
+    headers: authHeaders(token),
+  });
+}
+
+export function listMyTasks(
+  token: string,
+  status?: string,
+  limit = 50,
+): Promise<InspectionTaskSummary[]> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (status) query.set("status", status);
+  return request<InspectionTaskSummary[]>(`/v1/tasks/my-tasks?${query}`, {
+    headers: authHeaders(token),
+  });
+}
+
+export function acceptTask(
+  taskId: string,
+  token: string,
+): Promise<InspectionTaskSummary> {
+  return request<InspectionTaskSummary>(`/v1/tasks/${taskId}/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ task_id: taskId }),
+  });
+}
+
+export function declineTask(
+  taskId: string,
+  token: string,
+): Promise<{ task_id: string; status: string; declined_by: string }> {
+  return request<{ task_id: string; status: string; declined_by: string }>(
+    `/v1/tasks/${taskId}/decline`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify({ task_id: taskId }),
+    },
+  );
+}
+
+export function startTask(
+  taskId: string,
+  token: string,
+): Promise<InspectionTaskSummary> {
+  return request<InspectionTaskSummary>(`/v1/tasks/${taskId}/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ task_id: taskId }),
+  });
+}
+
+export function submitTask(
+  taskId: string,
+  token: string,
+): Promise<InspectionTaskSummary> {
+  return request<InspectionTaskSummary>(`/v1/tasks/${taskId}/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ task_id: taskId }),
+  });
+}
+
+export function completeTask(
+  taskId: string,
+  token: string,
+  verified = true,
+): Promise<InspectionTaskSummary> {
+  return request<InspectionTaskSummary>(`/v1/tasks/${taskId}/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ task_id: taskId, verified }),
+  });
+}
+
+export function getEligibleUsers(
+  token: string,
+  params: {
+    h3_cell_id: string;
+    task_type: string;
+    crop_code: string;
+    target_code: string;
+    required_expertise?: string;
+    max_distance_km?: number;
+  },
+): Promise<{ cell_id: string; eligible_users: EligibleUser[]; count: number }> {
+  const query = new URLSearchParams({
+    h3_cell_id: params.h3_cell_id,
+    task_type: params.task_type,
+    crop_code: params.crop_code,
+    target_code: params.target_code,
+  });
+  if (params.required_expertise) query.set("required_expertise", params.required_expertise);
+  if (params.max_distance_km !== undefined) query.set("max_distance_km", String(params.max_distance_km));
+  return request<{ cell_id: string; eligible_users: EligibleUser[]; count: number }>(
+    `/v1/tasks/eligible-users?${query}`,
+    { headers: authHeaders(token) },
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Inspection Results                                                 */
+/* ------------------------------------------------------------------ */
+
+export interface InspectionResultSubmit {
+  task_id: string;
+  h3_cell_id: string;
+  crop_code: string;
+  target_code: string;
+  found_issue: boolean;
+  severity?: string;
+  ai_confidence?: number;
+  symptoms_observed?: string;
+  photos_taken: number;
+  videos_taken: number;
+  farmer_notified: boolean;
+}
+
+export interface InspectionResult {
+  result_id: string;
+  task_id: string;
+  h3_cell_id: string;
+  inspected_by: string;
+  inspection_date: string;
+  crop_code: string;
+  target_code: string;
+  found_issue: boolean;
+  severity: string | null;
+  ai_confidence: number | null;
+  symptoms_observed: string | null;
+  photos_taken: number;
+  videos_taken: number;
+  farmer_notified: boolean;
+}
+
+export function submitInspectionResult(
+  payload: InspectionResultSubmit,
+  token: string,
+): Promise<InspectionResult> {
+  return request<InspectionResult>("/v1/inspections/results", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getInspectionResult(
+  resultId: string,
+  token: string,
+): Promise<InspectionResult> {
+  return request<InspectionResult>(`/v1/inspections/results/${resultId}`, {
+    headers: authHeaders(token),
+  });
+}
+
+export function listTaskResults(
+  taskId: string,
+  token: string,
+): Promise<{ task_id: string; results: InspectionResult[]; count: number }> {
+  return request<{ task_id: string; results: InspectionResult[]; count: number }>(
+    `/v1/inspections/tasks/${taskId}/results`,
+    { headers: authHeaders(token) },
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Expert Verification                                                */
+/* ------------------------------------------------------------------ */
+
+export interface ExpertVerificationSubmit {
+  observation_id?: string;
+  inspection_result_id?: string;
+  verification_status:
+    | "confirmed"
+    | "probable"
+    | "rejected"
+    | "duplicate"
+    | "needs_visit"
+    | "unresolved";
+  corrected_target_code?: string;
+  corrected_severity?: string;
+  notes?: string;
+}
+
+export interface ExpertVerification {
+  verification_id: string;
+  observation_id: string | null;
+  inspection_result_id: string | null;
+  verified_by: string;
+  verification_status: string;
+  corrected_target_code: string | null;
+  corrected_severity: string | null;
+  notes: string | null;
+  verified_at: string;
+}
+
+export interface PendingObservation {
+  observation_id: string;
+  h3_cell_id: string;
+  crop_code: string;
+  target_code: string;
+  event_date: string;
+  reported_at: string;
+  reporter_type: string;
+  verification_status: string;
+  severity: string | null;
+  ai_confidence: number | null;
+}
+
+export function submitExpertVerification(
+  payload: ExpertVerificationSubmit,
+  token: string,
+): Promise<ExpertVerification> {
+  return request<ExpertVerification>("/v1/expert-verification/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listPendingVerifications(
+  token: string,
+  targetCode?: string,
+  limit = 50,
+): Promise<{ observations: PendingObservation[]; count: number }> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (targetCode) query.set("target_code", targetCode);
+  return request<{ observations: PendingObservation[]; count: number }>(
+    `/v1/expert-verification/pending?${query}`,
+    { headers: authHeaders(token) },
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Recovery Monitoring                                                */
+/* ------------------------------------------------------------------ */
+
+export interface RecoveryRecordCreate {
+  farm_id: string;
+  h3_cell_id: string;
+  crop_code: string;
+  target_code: string;
+  previous_severity: string;
+  current_severity: string;
+  recovery_percentage: number;
+  recovery_status: string;
+  follow_up_date?: string;
+  notes?: string;
+}
+
+export interface RecoveryRecord {
+  record_id: string;
+  farm_id: string;
+  h3_cell_id: string;
+  crop_code: string;
+  target_code: string;
+  previous_severity: string;
+  current_severity: string;
+  recovery_percentage: number;
+  recovery_status: string;
+  follow_up_date: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export function createRecoveryRecord(
+  payload: RecoveryRecordCreate,
+  token: string,
+): Promise<RecoveryRecord> {
+  return request<RecoveryRecord>("/v1/recovery/records", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getRecoveryRecord(
+  recordId: string,
+  token: string,
+): Promise<RecoveryRecord> {
+  return request<RecoveryRecord>(`/v1/recovery/records/${recordId}`, {
+    headers: authHeaders(token),
+  });
+}
+
+export function listFarmRecoveryRecords(
+  farmId: string,
+  token: string,
+): Promise<{ farm_id: string; records: RecoveryRecord[]; count: number }> {
+  return request<{ farm_id: string; records: RecoveryRecord[]; count: number }>(
+    `/v1/recovery/farms/${farmId}/records`,
+    { headers: authHeaders(token) },
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Weather Risk                                                       */
+/* ------------------------------------------------------------------ */
+
+export interface WeatherRiskRequest {
+  h3_cell_id: string;
+  crop_code: string;
+  target_code: string;
+  target_type: "disease" | "pest";
+  resolution?: number;
+  growth_stage?: string;
+}
+
+export interface WeatherRiskResponse {
+  h3_cell_id: string;
+  crop_code: string;
+  target_code: string;
+  risk_score: number;
+  weather_risk: number;
+  biological_risk: number;
+  historical_risk: number;
+  risk_label: string;
+  contributing_factors: Record<string, unknown>;
+  valid_from: string;
+  valid_to: string;
+}
+
+export function calculateWeatherRisk(
+  payload: WeatherRiskRequest,
+  token: string,
+): Promise<WeatherRiskResponse> {
+  return request<WeatherRiskResponse>("/v1/weather/regional-risk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getRegionalRisk(
+  cellId: string,
+  cropCode: string,
+  targetCode: string,
+  targetType: "disease" | "pest",
+  token: string,
+): Promise<{
+  cell_id: string;
+  risk_score: number;
+  risk_label: string;
+  weather_risk: number;
+  biological_risk: number;
+  historical_risk: number;
+  contributing_factors: Record<string, unknown>;
+  valid_from: string;
+  valid_to: string;
+} | null> {
+  const query = new URLSearchParams({
+    crop_code: cropCode,
+    target_code: targetCode,
+    target_type: targetType,
+  });
+  return request<
+    | {
+        cell_id: string;
+        risk_score: number;
+        risk_label: string;
+        weather_risk: number;
+        biological_risk: number;
+        historical_risk: number;
+        contributing_factors: Record<string, unknown>;
+        valid_from: string;
+        valid_to: string;
+      }
+    | null
+  >(`/v1/weather/regional-risk/${cellId}?${query}`, {
+    headers: authHeaders(token),
+  });
+}

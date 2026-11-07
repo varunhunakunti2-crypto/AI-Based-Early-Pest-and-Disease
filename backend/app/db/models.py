@@ -27,6 +27,7 @@ from sqlalchemy.types import JSON
 from app.db.base import Base, TimestampMixin, UTCDateTime, new_id, utc_now
 from app.modules.conversations import orm as _chat_orm
 from app.modules.video import orm as _video_orm
+from app.geo import models as _geo_models  # noqa: F401  (registers H3 geo tables)
 
 # Re-export the chat and video models so ``app.db.models`` remains the single
 # import surface for ORM models. The chat schema is owned by the conversations
@@ -39,6 +40,25 @@ ImageUpload = _chat_orm.ImageUploadRow
 ChatReviewRequest = _chat_orm.ReviewRequestRow
 VideoUpload = _video_orm.VideoUploadRow
 VideoReading = _video_orm.VideoReadingRow
+
+# H3 hexagonal geospatial intelligence models
+H3Cell = _geo_models.H3Cell
+FarmHexagonAssignment = _geo_models.FarmHexagonAssignment
+GeoObservation = _geo_models.GeoObservation
+DiseaseReport = _geo_models.DiseaseReport
+PestReport = _geo_models.PestReport
+HotspotCluster = _geo_models.HotspotCluster
+HotspotHistory = _geo_models.HotspotHistory
+RegionalRiskScore = _geo_models.RegionalRiskScore
+WeatherCellRecord = _geo_models.WeatherCellRecord
+InspectionTask = _geo_models.InspectionTask
+TaskAssignment = _geo_models.TaskAssignment
+TaskStatusHistory = _geo_models.TaskStatusHistory
+FieldAgentProfile = _geo_models.FieldAgentProfile
+UserTaskAvailability = _geo_models.UserTaskAvailability
+InspectionResult = _geo_models.InspectionResult
+ExpertVerification = _geo_models.ExpertVerification
+RecoveryMonitoringRecord = _geo_models.RecoveryMonitoringRecord
 
 
 # ---------------------------------------------------------------------------
