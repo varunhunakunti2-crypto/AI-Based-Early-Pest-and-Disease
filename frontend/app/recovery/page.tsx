@@ -10,7 +10,6 @@
 import { useCallback, useMemo, useState } from "react";
 
 import {
-  Badge,
   Button,
   EmptyState,
   Field,
@@ -24,6 +23,7 @@ import { formatDateTime } from "@/lib/format";
 import {
   createRecoveryRecord,
   listFarmRecoveryRecords,
+  type RecoveryRecord,
   type RecoveryRecordCreate,
 } from "@/lib/api";
 import { readSession } from "@/lib/auth";
@@ -33,7 +33,7 @@ export default function RecoveryPage() {
   const token = session?.accessToken ?? "";
 
   const [farmId, setFarmId] = useState("");
-  const [records, setRecords] = useState<any[]>([]);
+  const [records, setRecords] = useState<RecoveryRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -102,18 +102,16 @@ export default function RecoveryPage() {
 
   const recoveryProgress = useMemo(() => {
     if (records.length === 0) return 0;
-    const latest = records.reduce(
-      (prev: any, curr: any) =>
-        new Date(curr.created_at) > new Date(prev.created_at) ? curr : prev,
+    const latest = records.reduce((prev, curr) =>
+      new Date(curr.created_at) > new Date(prev.created_at) ? curr : prev,
     );
     return latest.recovery_percentage;
   }, [records]);
 
   const latestRecord = useMemo(() => {
     if (records.length === 0) return null;
-    return records.reduce(
-      (prev: any, curr: any) =>
-        new Date(curr.created_at) > new Date(prev.created_at) ? curr : prev,
+    return records.reduce((prev, curr) =>
+      new Date(curr.created_at) > new Date(prev.created_at) ? curr : prev,
     );
   }, [records]);
 
@@ -281,7 +279,7 @@ export default function RecoveryPage() {
             <Field label="Previous Severity">
               <select
                 value={createForm.previous_severity}
-                onChange={(e) => setCreateForm({ ...createForm, previous_severity: e.target.value }) as any}
+                onChange={(e) => setCreateForm({ ...createForm, previous_severity: e.target.value })}
               >
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -293,7 +291,7 @@ export default function RecoveryPage() {
             <Field label="Current Severity">
               <select
                 value={createForm.current_severity}
-                onChange={(e) => setCreateForm({ ...createForm, current_severity: e.target.value }) as any}
+                onChange={(e) => setCreateForm({ ...createForm, current_severity: e.target.value })}
               >
                 <option value="none">None</option>
                 <option value="low">Low</option>
@@ -315,7 +313,7 @@ export default function RecoveryPage() {
             <Field label="Recovery Status">
               <select
                 value={createForm.recovery_status}
-                onChange={(e) => setCreateForm({ ...createForm, recovery_status: e.target.value }) as any}
+                onChange={(e) => setCreateForm({ ...createForm, recovery_status: e.target.value })}
               >
                 <option value="worsening">Worsening</option>
                 <option value="stable">Stable</option>

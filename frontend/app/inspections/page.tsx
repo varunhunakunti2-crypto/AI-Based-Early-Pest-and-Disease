@@ -7,25 +7,20 @@
  * evidence, symptom descriptions, and severity assessments.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 import {
-  Badge,
   Button,
-  EmptyState,
   Field,
   Icon,
-  Modal,
   PageHeader,
-  PhotoTile,
-  ProgressBar,
   StatCard,
 } from "@/components/workspace/ui";
 import { formatDateTime } from "@/lib/format";
 import {
   submitInspectionResult,
   getInspectionResult,
-  listTaskResults,
+  type InspectionResult,
   type InspectionResultSubmit,
 } from "@/lib/api";
 import { readSession } from "@/lib/auth";
@@ -37,8 +32,8 @@ export default function InspectionsPage() {
   const [taskId, setTaskId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<InspectionResultSubmit | null>(null);
-  const [result, setResult] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<InspectionResult | null>(null);
+  const [, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -144,7 +139,6 @@ export default function InspectionsPage() {
                 <div className="ws-small ws-muted">
                   <span>Target: {result.target_code}</span>
                   <span>Crop: {result.crop_code}</span>
-                  <span>Status: {result.status}</span>
                   <span>Cell: {result.h3_cell_id}</span>
                 </div>
               </div>
@@ -257,8 +251,8 @@ export default function InspectionsPage() {
             {submitted?.severity && (
               <StatCard label="Severity" value={submitted.severity} detail="Field assessment" tone="warn" />
             )}
-            <StatCard label="Photos" value={submitted?.photos_taken ?? result?.photos_taken} detail="Field evidence" />
-            <StatCard label="Videos" value={submitted?.videos_taken ?? result?.videos_taken} detail="Field evidence" />
+            <StatCard label="Photos" value={submitted?.photos_taken ?? result?.photos_taken ?? 0} detail="Field evidence" />
+            <StatCard label="Videos" value={submitted?.videos_taken ?? result?.videos_taken ?? 0} detail="Field evidence" />
 
             {submitted?.symptoms_observed && (
               <div style={{ marginTop: "12px", padding: "12px", background: "#f4f6f1", borderRadius: "8px" }}>

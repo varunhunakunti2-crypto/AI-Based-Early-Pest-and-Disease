@@ -12,7 +12,6 @@
 export function h3BoundaryToGeoJSON(
   cellId: string,
   boundary: number[][],
-  resolution: number,
 ): GeoJSON.Polygon {
   // Convert [lat, lng] to GeoJSON [lng, lat]
   const coordinates = boundary.map(([lat, lng]) => [lng, lat] as [number, number]);
@@ -56,11 +55,7 @@ export function cellsToGeoJSON(
         centerLat: cell.centerLat,
         centerLng: cell.centerLng,
       },
-      geometry: h3BoundaryToGeoJSON(
-        cell.cellId,
-        cell.boundary,
-        cell.resolution,
-      ),
+      geometry: h3BoundaryToGeoJSON(cell.cellId, cell.boundary),
     })),
   } as GeoJSON.FeatureCollection<GeoJSON.Polygon>;
 }

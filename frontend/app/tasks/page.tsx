@@ -13,7 +13,7 @@
  * - Eligible user lookup for task assignment
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   Badge,
@@ -23,10 +23,9 @@ import {
   Icon,
   Modal,
   PageHeader,
-  StatCard,
   Tabs,
 } from "@/components/workspace/ui";
-import { formatDateTime, relativeTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import {
   acceptTask,
   completeTask,
@@ -35,11 +34,11 @@ import {
   getEligibleUsers,
   listAvailableTasks,
   listMyTasks,
-  listTaskResults,
   startTask,
   submitTask,
   type AvailableTask,
   type EligibleUser,
+  type InspectionResult,
   type InspectionTaskSummary,
   type TaskCreateInput,
 } from "@/lib/api";
@@ -74,12 +73,12 @@ export default function TasksPage() {
   const [availableTasks, setAvailableTasks] = useState<AvailableTask[]>([]);
   const [myTasks, setMyTasks] = useState<InspectionTaskSummary[]>([]);
   const [eligibleUsers, setEligibleUsers] = useState<EligibleUser[]>([]);
-  const [taskResults, setTaskResults] = useState<any[]>([]);
-  const [selectedTask, setSelectedTask] = useState<AvailableTask | null>(null);
+  const [taskResults] = useState<InspectionResult[]>([]);
+  const [, setSelectedTask] = useState<AvailableTask | null>(null);
   const [selectedMyTask, setSelectedMyTask] = useState<InspectionTaskSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<TaskCreateInput>({
     h3_cell_id: "",
     crop_code: "",
@@ -134,19 +133,12 @@ export default function TasksPage() {
   }, [token]);
 
   // Load task results
-  const loadTaskResults = useCallback(async (taskId: string) => {
-    if (!token) return;
-    try {
-      const result = await listTaskResults(taskId, token);
-      setTaskResults(result.results);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load task results");
-    }
-  }, [token]);
-
   useEffect(() => {
-    loadAvailableTasks();
-    loadMyTasks();
+    const timer = setTimeout(() => {
+      void loadAvailableTasks();
+      void loadMyTasks();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadAvailableTasks, loadMyTasks]);
 
   const handleAccept = useCallback(async (task: AvailableTask) => {
@@ -249,7 +241,6 @@ export default function TasksPage() {
       t.status !== "CANCELLED" &&
       t.status !== "EXPIRED",
   ).length;
-  const completedCount = myTasks.filter((t) => t.status === "COMPLETED").length;
 
   return (
     <div className="ws-page">

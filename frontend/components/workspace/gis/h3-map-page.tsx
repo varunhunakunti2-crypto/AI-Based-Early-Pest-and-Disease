@@ -10,18 +10,13 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import {
-  H3HexagonLayer,
-  type H3HexagonLayerProps,
-} from "@/components/workspace/gis/H3HexagonLayer";
+import { H3HexagonLayer } from "@/components/workspace/gis/H3HexagonLayer";
 import {
   classificationColor,
   classificationLabel,
   allClassifications,
 } from "@/lib/gis/h3-colors";
-import { haversineDistanceKm } from "@/lib/gis/h3-geojson";
 import {
-  Badge,
   Button,
   Icon,
   PageHeader,
@@ -83,6 +78,12 @@ interface SelectedCellInfo {
   riskScore: number;
 }
 
+function classificationTone(classification: string): "ok" | "warn" | "bad" {
+  if (classification === "critical" || classification === "high") return "bad";
+  if (classification === "moderate") return "warn";
+  return "ok";
+}
+
 /** Keeps the Leaflet view in sync when the parent selects a new cell. */
 function MapViewSync({
   center,
@@ -117,7 +118,7 @@ export default function H3MapPage() {
     tasks: true,
     farmBoundaries: false,
   });
-  const [filters, setFilters] = useState({
+  const [filters] = useState({
     disease: "" as string,
     pest: "" as string,
     crop: "" as string,
@@ -142,12 +143,10 @@ export default function H3MapPage() {
       for (let j = -3; j <= 3; j++) {
         const lat = DEFAULT_CENTER[0]! + i * 0.02;
         const lng = DEFAULT_CENTER[1]! + j * 0.02;
-        const cellId = String(
-          Math.floor(Math.random() * 1e18)
-        );
-        const classification =
-          classifications[Math.floor(Math.random() * classifications.length)];
-        const score = Math.round(Math.random() * 100) / 100;
+        const seed = (i + 3) * 7 + (j + 3) * 13 + resolution;
+        const cellId = String(580964351931676000 + seed);
+        const classification = classifications[seed % classifications.length]!;
+        const score = (seed % 100) / 100;
 
         cells.push({
           cellId,
@@ -163,7 +162,7 @@ export default function H3MapPage() {
                   targetCode: "rice_blast",
                   classification: classification as string,
                   score,
-                  uniqueAffectedFarms: Math.floor(Math.random() * 5) + 1,
+                  uniqueAffectedFarms: (seed % 5) + 1,
                 }
               : undefined,
           pestHotspot:
@@ -172,12 +171,12 @@ export default function H3MapPage() {
                   targetCode: "fall_armyworm",
                   classification,
                   score,
-                  uniqueAffectedFarms: Math.floor(Math.random() * 3) + 1,
+                  uniqueAffectedFarms: (seed % 3) + 1,
                 }
               : undefined,
           riskScore: score,
           riskLabel: classification,
-          weatherRisk: Math.round(Math.random() * 100) / 100,
+          weatherRisk: ((seed * 3) % 100) / 100,
         });
       }
     }
@@ -282,10 +281,13 @@ export default function H3MapPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [mockHexagons]);
 
   useEffect(() => {
-    loadData();
+    const timer = setTimeout(() => {
+      void loadData();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadData]);
 
   if (isLoading && hexagons.length === 0) {
@@ -457,7 +459,7 @@ export default function H3MapPage() {
                 <StatCard
                   label="Classification"
                   value={classificationLabel(selectedCell.classification)}
-                  tone={selectedCell.classification as any}
+                  tone={classificationTone(selectedCell.classification)}
                 />
                 <StatCard
                   label="Risk Score"
@@ -558,7 +560,6 @@ export default function H3MapPage() {
                 type="checkbox"
                 checked={visible}
                 readOnly
-                onChange={(e) => handleToggleLayer(e.target.checked as any)}
               />
               {key.charAt(0).toUpperCase() + key.slice(1)}
             </div>
@@ -571,6 +572,7 @@ export default function H3MapPage() {
           </div>
           {RESOLUTIONS.map((r) => (
             <Button
+              key={r.value}
               size="sm"
               variant={resolution === r.value ? ("solid" as const) : ("outline" as const)}
               onClick={() => setResolution(r.value)}

@@ -7,7 +7,6 @@
  * Supports click interactions, resolution switching, and layer toggling.
  */
 
-import { useCallback } from "react";
 import { Polygon, Popup } from "react-leaflet";
 import { classificationColor } from "@/lib/gis/h3-colors";
 import type { LeafletMouseEvent } from "leaflet";
