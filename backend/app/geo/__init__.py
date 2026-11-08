@@ -8,9 +8,9 @@ call ``set_h3_backend("official")`` to switch.
 from .h3_utils import (
     DEFAULT_RESOLUTIONS,
     EARTH_RADIUS_M,
+    MAX_RESOLUTION,
     H3CellInfo,
     H3Error,
-    MAX_RESOLUTION,
     cell_info,
     generate_grid,
     geo_to_h3,

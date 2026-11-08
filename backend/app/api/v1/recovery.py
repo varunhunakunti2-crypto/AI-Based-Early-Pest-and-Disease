@@ -6,18 +6,16 @@ inspection dates and recovery progress.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Query, Path, status
+from fastapi import APIRouter, Depends, Path, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_principal, require_roles
+from app.api.deps import get_principal
 from app.core.errors import ApiError
 from app.db.models import (
     RecoveryMonitoringRecord,
-    User,
 )
 from app.db.session import get_db
 
@@ -29,19 +27,15 @@ class RecoveryRecordCreate(BaseModel):
     h3_cell_id: str
     crop_code: str
     target_code: str
-    previous_severity: str = Field(
-        pattern="^(none|low|moderate|high|critical)$"
-    )
-    current_severity: str = Field(
-        pattern="^(none|low|moderate|high|critical)$"
-    )
+    previous_severity: str = Field(pattern="^(none|low|moderate|high|critical)$")
+    current_severity: str = Field(pattern="^(none|low|moderate|high|critical)$")
     recovery_percentage: float = Field(default=0.0, ge=0, le=100)
     recovery_status: str = Field(
         default="worsening",
         pattern="^(worsening|stable|partial_recovery|full_recovery)$",
     )
-    follow_up_date: Optional[str] = Field(default=None)
-    notes: Optional[str] = Field(default=None, max_length=2000)
+    follow_up_date: str | None = Field(default=None)
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class RecoveryRecordResponse(BaseModel):
@@ -54,8 +48,8 @@ class RecoveryRecordResponse(BaseModel):
     current_severity: str
     recovery_percentage: float
     recovery_status: str
-    follow_up_date: Optional[str]
-    notes: Optional[str]
+    follow_up_date: str | None
+    notes: str | None
     created_at: str
 
 
@@ -101,9 +95,7 @@ def create_recovery_record(
         current_severity=record.current_severity,
         recovery_percentage=float(record.recovery_percentage),
         recovery_status=record.recovery_status,
-        follow_up_date=(
-            record.follow_up_date.isoformat() if record.follow_up_date else None
-        ),
+        follow_up_date=(record.follow_up_date.isoformat() if record.follow_up_date else None),
         notes=record.notes,
         created_at=record.created_at.isoformat(),
     )
@@ -130,9 +122,7 @@ def get_recovery_record(
         "current_severity": record.current_severity,
         "recovery_percentage": float(record.recovery_percentage),
         "recovery_status": record.recovery_status,
-        "follow_up_date": (
-            record.follow_up_date.isoformat() if record.follow_up_date else None
-        ),
+        "follow_up_date": (record.follow_up_date.isoformat() if record.follow_up_date else None),
         "notes": record.notes,
         "created_at": record.created_at.isoformat(),
         "updated_at": record.updated_at.isoformat(),
@@ -166,9 +156,7 @@ def list_farm_recovery_records(
                 "current_severity": r.current_severity,
                 "recovery_percentage": float(r.recovery_percentage),
                 "recovery_status": r.recovery_status,
-                "follow_up_date": (
-                    r.follow_up_date.isoformat() if r.follow_up_date else None
-                ),
+                "follow_up_date": (r.follow_up_date.isoformat() if r.follow_up_date else None),
                 "created_at": r.created_at.isoformat(),
             }
             for r in rows
@@ -196,7 +184,7 @@ def update_recovery_record(
     record.notes = payload.notes
     if payload.follow_up_date:
         record.follow_up_date = datetime.fromisoformat(payload.follow_up_date)
-    record.updated_at = datetime.now(timezone.utc)
+    record.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(record)
 
@@ -210,9 +198,7 @@ def update_recovery_record(
         current_severity=record.current_severity,
         recovery_percentage=float(record.recovery_percentage),
         recovery_status=record.recovery_status,
-        follow_up_date=(
-            record.follow_up_date.isoformat() if record.follow_up_date else None
-        ),
+        follow_up_date=(record.follow_up_date.isoformat() if record.follow_up_date else None),
         notes=record.notes,
         created_at=record.created_at.isoformat(),
     )

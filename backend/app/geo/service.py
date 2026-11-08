@@ -6,37 +6,27 @@ assignment, and hexagon-level data aggregation.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from typing import Optional, Sequence
-
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.h3_config import default_resolution, get_resolution
+from app.core.h3_config import default_resolution
 from app.db.models import (
-    Crop,
-    DiseaseReport,
     FarmHexagonAssignment,
     GeoObservation,
     H3Cell,
     HotspotCluster,
-    PestReport,
-    Target,
-    User,
 )
-from app.db.session import get_db
 from app.geo import (
     cell_info,
     generate_grid,
     geo_to_h3,
     great_circle_distance_m,
     h3_get_resolution,
+    h3_is_valid,
     h3_to_center,
     h3_to_children,
-    h3_to_geo,
     h3_to_geo_boundary,
     h3_to_parent,
-    h3_is_valid,
     k_ring,
 )
 
@@ -64,7 +54,6 @@ def get_cell_info(cell_id: int) -> dict:
     validate_cell(cell_id)
     info = cell_info(cell_id)
     center_lat, center_lng = h3_to_center(cell_id)
-    boundary = h3_to_geo_boundary(cell_id)
     return {
         "cell_id": str(info.cell_id),
         "resolution": info.resolution,
@@ -86,7 +75,7 @@ def get_neighbours(cell_id: int, k: int = 1) -> list[dict]:
     return [get_cell_info(cid) for cid in neighbour_ids]
 
 
-def get_parent(cell_id: int, parent_resolution: Optional[int] = None) -> dict:
+def get_parent(cell_id: int, parent_resolution: int | None = None) -> dict:
     """Return the parent cell at a coarser resolution."""
     validate_cell(cell_id)
     current_res = h3_get_resolution(cell_id)
@@ -100,7 +89,7 @@ def get_parent(cell_id: int, parent_resolution: Optional[int] = None) -> dict:
     return get_cell_info(parent_id)
 
 
-def get_children(cell_id: int, child_resolution: Optional[int] = None) -> list[dict]:
+def get_children(cell_id: int, child_resolution: int | None = None) -> list[dict]:
     """Return child cells at a finer resolution."""
     validate_cell(cell_id)
     current_res = h3_get_resolution(cell_id)
@@ -119,7 +108,7 @@ def generate_grid_in_bbox(
     lng_min: float,
     lat_max: float,
     lng_max: float,
-    resolution: Optional[int] = None,
+    resolution: int | None = None,
 ) -> list[dict]:
     """Generate H3 cells covering a bounding box."""
     if resolution is None:
@@ -138,7 +127,7 @@ def assign_farm_to_cell(
     geo_code: str,
     lat: float,
     lng: float,
-    resolution: Optional[int] = None,
+    resolution: int | None = None,
     is_primary: bool = True,
 ) -> dict:
     """Assign a farm to an H3 cell based on its GPS coordinates.
@@ -157,7 +146,6 @@ def assign_farm_to_cell(
     if existing_cell is None:
         info = cell_info(cell_id)
         boundary = h3_to_geo_boundary(cell_id)
-        import json
 
         new_cell = H3Cell(
             cell_id=cell_id_str,
@@ -169,9 +157,7 @@ def assign_farm_to_cell(
                 "type": "Polygon",
                 "coordinates": [[[lng, lat] for lat, lng in boundary]],
             },
-            parent_cell_id=str(h3_to_parent(cell_id, resolution - 1))
-            if resolution > 0
-            else None,
+            parent_cell_id=str(h3_to_parent(cell_id, resolution - 1)) if resolution > 0 else None,
             is_active=True,
             is_demo=False,
         )
@@ -181,7 +167,8 @@ def assign_farm_to_cell(
     # If this is the primary assignment, unset other primary assignments for this farm
     if is_primary:
         db.execute(
-            __import__("sqlalchemy", fromlist=["update"]).update(FarmHexagonAssignment)
+            __import__("sqlalchemy", fromlist=["update"])
+            .update(FarmHexagonAssignment)
             .where(FarmHexagonAssignment.farm_id == farm_id)
             .where(FarmHexagonAssignment.is_primary.is_(True))
             .values(is_primary=False)
@@ -220,13 +207,9 @@ def assign_farm_to_cell(
     }
 
 
-def get_farms_in_cell(
-    db: Session, h3_cell_id: str, resolution: Optional[int] = None
-) -> list[dict]:
+def get_farms_in_cell(db: Session, h3_cell_id: str, resolution: int | None = None) -> list[dict]:
     """Return farms assigned to an H3 cell."""
-    query = select(FarmHexagonAssignment).where(
-        FarmHexagonAssignment.h3_cell_id == h3_cell_id
-    )
+    query = select(FarmHexagonAssignment).where(FarmHexagonAssignment.h3_cell_id == h3_cell_id)
     if resolution is not None:
         query = query.where(FarmHexagonAssignment.resolution == resolution)
     rows = db.scalars(query).all()
@@ -247,9 +230,7 @@ def get_farms_in_cell(
     ]
 
 
-def get_cell_for_coordinates(
-    lat: float, lng: float, resolution: Optional[int] = None
-) -> dict:
+def get_cell_for_coordinates(lat: float, lng: float, resolution: int | None = None) -> dict:
     """Return the H3 cell containing given coordinates."""
     if resolution is None:
         resolution = default_resolution()
@@ -258,7 +239,7 @@ def get_cell_for_coordinates(
 
 
 def aggregate_observations_in_cell(
-    db: Session, h3_cell_id: str, resolution: Optional[int] = None
+    db: Session, h3_cell_id: str, resolution: int | None = None
 ) -> dict:
     """Aggregate observations for an H3 cell."""
     query = select(GeoObservation).where(GeoObservation.h3_cell_id == h3_cell_id)
@@ -293,9 +274,7 @@ def aggregate_observations_in_cell(
     }
 
 
-def get_hotspots_in_cell(
-    db: Session, h3_cell_id: str, resolution: Optional[int] = None
-) -> list[dict]:
+def get_hotspots_in_cell(db: Session, h3_cell_id: str, resolution: int | None = None) -> list[dict]:
     """Return hotspot clusters for an H3 cell."""
     query = select(HotspotCluster).where(HotspotCluster.h3_cell_id == h3_cell_id)
     if resolution is not None:
@@ -324,7 +303,7 @@ def calculate_distance_km(lat1: float, lng1: float, lat2: float, lng2: float) ->
 
 
 def find_nearby_cells(
-    lat: float, lng: float, radius_km: float, resolution: Optional[int] = None
+    lat: float, lng: float, radius_km: float, resolution: int | None = None
 ) -> list[dict]:
     """Find H3 cells within a radius of given coordinates."""
     if resolution is None:
@@ -333,9 +312,7 @@ def find_nearby_cells(
     # Determine k ring based on radius and resolution
     # Approximate: each ring adds ~hex diameter
     hex_diameter_km = (
-        __import__("backend.app.geo.h3_utils", fromlist=["hex_area_m2"]).hex_area_m2(
-            resolution
-        )
+        __import__("backend.app.geo.h3_utils", fromlist=["hex_area_m2"]).hex_area_m2(resolution)
         ** 0.5
         / 1000.0
         * 2

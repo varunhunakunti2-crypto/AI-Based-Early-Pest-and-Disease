@@ -14,12 +14,10 @@ All new tables follow the existing conventions:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -32,7 +30,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
 
 from app.db.base import Base, TimestampMixin, UTCDateTime, new_id, utc_now
-
 
 # ---------------------------------------------------------------------------
 # H3 Hexagonal Grid
@@ -54,12 +51,8 @@ class H3Cell(Base, TimestampMixin):
         Index("ix_h3_cells_res_center", "resolution", "center_lat", "center_lng"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("h3c")
-    )
-    cell_id: Mapped[str] = mapped_column(
-        String(32), unique=True, nullable=False, index=True
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("h3c"))
+    cell_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
     """H3 cell identifier as a decimal string (64-bit integer)."""
 
     resolution: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
@@ -71,9 +64,7 @@ class H3Cell(Base, TimestampMixin):
     boundary_geojson: Mapped[dict] = mapped_column(JSON, nullable=False)
     """GeoJSON Polygon representing the cell boundary."""
 
-    parent_cell_id: Mapped[Optional[str]] = mapped_column(
-        String(32), nullable=True, index=True
-    )
+    parent_cell_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     """Parent H3 cell ID at resolution-1, if any."""
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -108,31 +99,17 @@ class FarmHexagonAssignment(Base, TimestampMixin):
         Index("ix_farm_hex_geo", "geo_code"),
         Index("ix_farm_hex_cell", "h3_cell_id"),
         Index("ix_farm_hex_farm", "farm_id"),
-        UniqueConstraint(
-            "farm_id", "h3_cell_id", name="uq_farm_hexagon_assignment"
-        ),
+        UniqueConstraint("farm_id", "h3_cell_id", name="uq_farm_hexagon_assignment"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("fha")
-    )
-    farm_id: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("fha"))
+    farm_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     geo_code: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    h3_cell_id: Mapped[str] = mapped_column(
-        String(32), nullable=False, index=True
-    )
+    h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     resolution: Mapped[int] = mapped_column(Integer, nullable=False)
-    overlap_area_m2: Mapped[Optional[float]] = mapped_column(
-        Numeric(12, 2), nullable=True
-    )
-    overlap_percentage: Mapped[Optional[float]] = mapped_column(
-        Numeric(5, 2), nullable=True
-    )
-    is_primary: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )
+    overlap_area_m2: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    overlap_percentage: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     """True if this is the primary (centroid) cell for the farm."""
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -169,37 +146,27 @@ class GeoObservation(Base, TimestampMixin):
         Index("ix_geo_obs_event", "event_date"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("geo")
-    )
-    observation_id: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True, index=True
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("geo"))
+    observation_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     """Link to the core observations table, if applicable."""
-    h3_cell_id: Mapped[str] = mapped_column(
-        String(32), nullable=False, index=True
-    )
+    h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     resolution: Mapped[int] = mapped_column(Integer, nullable=False)
     geo_code: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     crop_code: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     target_code: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     """Disease or pest target code."""
     event_date: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
-    reported_at: Mapped[datetime] = mapped_column(
-        UTCDateTime, default=utc_now, nullable=False
-    )
+    reported_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     reporter_type: Mapped[str] = mapped_column(String(30), nullable=False)
     """farmer | field_agent | expert | ai_system"""
     verification_status: Mapped[str] = mapped_column(
         String(30), default="unverified", nullable=False, index=True
     )
     """unverified | pending_review | confirmed | probable | rejected | duplicate"""
-    severity: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    severity: Mapped[str | None] = mapped_column(String(30), nullable=True)
     """none | low | moderate | high | critical"""
-    ai_confidence: Mapped[Optional[float]] = mapped_column(
-        Numeric(5, 4), nullable=True
-    )
-    ai_model_version: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    ai_confidence: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+    ai_model_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     __table_args__ = (
@@ -212,7 +179,8 @@ class GeoObservation(Base, TimestampMixin):
             name="ck_geo_obs_reporter_type",
         ),
         CheckConstraint(
-            "verification_status IN ('unverified', 'pending_review', 'confirmed', 'probable', 'rejected', 'duplicate')",
+            "verification_status IN ('unverified', 'pending_review', 'confirmed', "
+            "'probable', 'rejected', 'duplicate')",
             name="ck_geo_obs_verification_status",
         ),
         CheckConstraint(
@@ -245,34 +213,29 @@ class DiseaseReport(Base, TimestampMixin):
         Index("ix_disease_target", "target_code"),
         Index("ix_disease_event", "event_date"),
         UniqueConstraint(
-            "h3_cell_id", "target_code", "event_date", "report_source",
+            "h3_cell_id",
+            "target_code",
+            "event_date",
+            "report_source",
             name="uq_disease_report_unique",
         ),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("dis")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("dis"))
     h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     resolution: Mapped[int] = mapped_column(Integer, nullable=False)
     crop_code: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     target_code: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     event_date: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
-    report_date: Mapped[datetime] = mapped_column(
-        UTCDateTime, default=utc_now, nullable=False
-    )
+    report_date: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     report_source: Mapped[str] = mapped_column(String(50), nullable=False)
     """farmer_report | field_agent | expert_verification | ai_detection"""
     case_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     unique_farms: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     verified_farms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    severity_distribution: Mapped[dict] = mapped_column(
-        JSON, default=dict, nullable=False
-    )
+    severity_distribution: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     """{"low": 2, "moderate": 1, "high": 0, "critical": 0}"""
-    avg_ai_confidence: Mapped[Optional[float]] = mapped_column(
-        Numeric(5, 4), nullable=True
-    )
+    avg_ai_confidence: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     __table_args__ = (
@@ -302,32 +265,27 @@ class PestReport(Base, TimestampMixin):
         Index("ix_pest_target", "target_code"),
         Index("ix_pest_event", "event_date"),
         UniqueConstraint(
-            "h3_cell_id", "target_code", "event_date", "report_source",
+            "h3_cell_id",
+            "target_code",
+            "event_date",
+            "report_source",
             name="uq_pest_report_unique",
         ),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("pst")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("pst"))
     h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     resolution: Mapped[int] = mapped_column(Integer, nullable=False)
     crop_code: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     target_code: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     event_date: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
-    report_date: Mapped[datetime] = mapped_column(
-        UTCDateTime, default=utc_now, nullable=False
-    )
+    report_date: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     report_source: Mapped[str] = mapped_column(String(50), nullable=False)
     case_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     unique_farms: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     verified_farms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    severity_distribution: Mapped[dict] = mapped_column(
-        JSON, default=dict, nullable=False
-    )
-    avg_ai_confidence: Mapped[Optional[float]] = mapped_column(
-        Numeric(5, 4), nullable=True
-    )
+    severity_distribution: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    avg_ai_confidence: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     __table_args__ = (
@@ -364,20 +322,21 @@ class HotspotCluster(Base, TimestampMixin):
         Index("ix_hotspot_classification", "classification"),
         Index("ix_hotspot_updated", "updated_at"),
         UniqueConstraint(
-            "h3_cell_id", "target_type", "target_code", "resolution",
+            "h3_cell_id",
+            "target_type",
+            "target_code",
+            "resolution",
             name="uq_hotspot_cluster_unique",
         ),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("hot")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("hot"))
     h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     resolution: Mapped[int] = mapped_column(Integer, nullable=False)
     target_type: Mapped[str] = mapped_column(String(30), nullable=False)
     """disease | pest"""
     target_code: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    crop_code: Mapped[Optional[str]] = mapped_column(String(60), nullable=True, index=True)
+    crop_code: Mapped[str | None] = mapped_column(String(60), nullable=True, index=True)
     classification: Mapped[str] = mapped_column(
         String(20), default="low", nullable=False, index=True
     )
@@ -390,23 +349,13 @@ class HotspotCluster(Base, TimestampMixin):
     unverified_reports: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     pending_reviews: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     severity_distribution: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
-    first_reported: Mapped[Optional[datetime]] = mapped_column(
-        UTCDateTime, nullable=True
-    )
-    most_recent_report: Mapped[Optional[datetime]] = mapped_column(
-        UTCDateTime, nullable=True
-    )
-    historical_frequency: Mapped[float] = mapped_column(
-        Numeric(6, 4), default=0.0, nullable=False
-    )
-    weather_risk_factor: Mapped[Optional[float]] = mapped_column(
-        Numeric(5, 4), nullable=True
-    )
+    first_reported: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    most_recent_report: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    historical_frequency: Mapped[float] = mapped_column(Numeric(6, 4), default=0.0, nullable=False)
+    weather_risk_factor: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
     neighbor_cells: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     """List of neighboring H3 cell IDs that are also hotspots."""
-    calculated_at: Mapped[datetime] = mapped_column(
-        UTCDateTime, default=utc_now, nullable=False
-    )
+    calculated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     __table_args__ = (
@@ -419,14 +368,16 @@ class HotspotCluster(Base, TimestampMixin):
             name="ck_hotspot_classification",
         ),
         CheckConstraint(
-            "score >= 0 AND score <= 1", name="ck_hotspot_score_range",
+            "score >= 0 AND score <= 1",
+            name="ck_hotspot_score_range",
         ),
         CheckConstraint(
             "target_type IN ('disease', 'pest')",
             name="ck_hotspot_target_type",
         ),
         CheckConstraint(
-            "weather_risk_factor IS NULL OR (weather_risk_factor >= 0 AND weather_risk_factor <= 1)",
+            "weather_risk_factor IS NULL OR (weather_risk_factor >= 0 "
+            "AND weather_risk_factor <= 1)",
             name="ck_hotspot_weather_risk_range",
         ),
     )
@@ -442,21 +393,15 @@ class HotspotHistory(Base, TimestampMixin):
         Index("ix_hotspot_hist_target", "target_code"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("hoh")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("hoh"))
     h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     target_type: Mapped[str] = mapped_column(String(30), nullable=False)
     target_code: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    snapshot_date: Mapped[datetime] = mapped_column(
-        UTCDateTime, nullable=False, index=True
-    )
+    snapshot_date: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
     classification: Mapped[str] = mapped_column(String(20), nullable=False)
     score: Mapped[float] = mapped_column(Numeric(6, 4), default=0.0, nullable=False)
     unique_affected_farms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    weather_risk_factor: Mapped[Optional[float]] = mapped_column(
-        Numeric(5, 4), nullable=True
-    )
+    weather_risk_factor: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
@@ -479,43 +424,32 @@ class RegionalRiskScore(Base, TimestampMixin):
         Index("ix_risk_crop_target", "crop_code", "target_code"),
         Index("ix_risk_valid", "valid_from", "valid_to"),
         UniqueConstraint(
-            "h3_cell_id", "crop_code", "target_code", "valid_from",
+            "h3_cell_id",
+            "crop_code",
+            "target_code",
+            "valid_from",
             name="uq_risk_score_unique",
         ),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("rsk")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("rsk"))
     h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     resolution: Mapped[int] = mapped_column(Integer, nullable=False)
     crop_code: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     target_code: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     valid_from: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     valid_to: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
-    risk_score: Mapped[float] = mapped_column(
-        Numeric(6, 4), default=0.0, nullable=False
-    )
+    risk_score: Mapped[float] = mapped_column(Numeric(6, 4), default=0.0, nullable=False)
     """Composite risk score (0.0 to 1.0)."""
-    weather_risk: Mapped[float] = mapped_column(
-        Numeric(6, 4), default=0.0, nullable=False
-    )
+    weather_risk: Mapped[float] = mapped_column(Numeric(6, 4), default=0.0, nullable=False)
     """Weather-suitability component (0.0 to 1.0)."""
-    biological_risk: Mapped[float] = mapped_column(
-        Numeric(6, 4), default=0.0, nullable=False
-    )
+    biological_risk: Mapped[float] = mapped_column(Numeric(6, 4), default=0.0, nullable=False)
     """Pest/disease biology suitability component."""
-    historical_risk: Mapped[float] = mapped_column(
-        Numeric(6, 4), default=0.0, nullable=False
-    )
+    historical_risk: Mapped[float] = mapped_column(Numeric(6, 4), default=0.0, nullable=False)
     """Historical observation frequency component."""
-    risk_label: Mapped[str] = mapped_column(
-        String(20), default="insufficient_data", nullable=False
-    )
+    risk_label: Mapped[str] = mapped_column(String(20), default="insufficient_data", nullable=False)
     """insufficient_data | low | moderate | high | critical"""
-    contributing_factors: Mapped[dict] = mapped_column(
-        JSON, default=dict, nullable=False
-    )
+    contributing_factors: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     """{"temperature": 0.3, "humidity": 0.5, "rainfall": 0.1, ...}"""
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -533,7 +467,8 @@ class RegionalRiskScore(Base, TimestampMixin):
             name="ck_risk_weather_range",
         ),
         CheckConstraint(
-            "valid_to > valid_from", name="ck_risk_valid_window",
+            "valid_to > valid_from",
+            name="ck_risk_valid_window",
         ),
         CheckConstraint(
             "risk_label IN ('insufficient_data', 'low', 'moderate', 'high', 'critical')",
@@ -560,29 +495,23 @@ class WeatherCellRecord(Base, TimestampMixin):
         Index("ix_weather_source_ts", "source_timestamp"),
         Index("ix_weather_expires", "expires_at"),
         UniqueConstraint(
-            "h3_cell_id", "source", "source_timestamp",
+            "h3_cell_id",
+            "source",
+            "source_timestamp",
             name="uq_weather_cell_unique",
         ),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("wcr")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("wcr"))
     h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     resolution: Mapped[int] = mapped_column(Integer, nullable=False)
     source: Mapped[str] = mapped_column(String(80), nullable=False)
-    source_timestamp: Mapped[datetime] = mapped_column(
-        UTCDateTime, nullable=False, index=True
-    )
-    fetched_at: Mapped[datetime] = mapped_column(
-        UTCDateTime, default=utc_now, nullable=False
-    )
+    source_timestamp: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
+    fetched_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
     variables: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     """temperature_2m, relative_humidity_2m, precipitation, etc."""
-    completeness: Mapped[float] = mapped_column(
-        Numeric(4, 3), default=0.0, nullable=False
-    )
+    completeness: Mapped[float] = mapped_column(Numeric(4, 3), default=0.0, nullable=False)
     is_stale: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -622,9 +551,7 @@ class InspectionTask(Base, TimestampMixin):
         Index("ix_task_deadline", "deadline"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("tsk")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("tsk"))
     h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     resolution: Mapped[int] = mapped_column(Integer, nullable=False)
     crop_code: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
@@ -635,36 +562,20 @@ class InspectionTask(Base, TimestampMixin):
         String(20), default="moderate", nullable=False, index=True
     )
     """low | moderate | high | urgent"""
-    status: Mapped[str] = mapped_column(
-        String(30), default="CREATED", nullable=False, index=True
-    )
-    assigned_to: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="CREATED", nullable=False, index=True)
+    assigned_to: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     """User ID of the assigned field agent/expert/farmer."""
-    assigned_by: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True
-    )
+    assigned_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
     """User ID or 'system' for automatic assignment."""
-    assignment_type: Mapped[str] = mapped_column(
-        String(20), default="automatic", nullable=False
-    )
+    assignment_type: Mapped[str] = mapped_column(String(20), default="automatic", nullable=False)
     """automatic | voluntary"""
-    deadline: Mapped[Optional[datetime]] = mapped_column(
-        UTCDateTime, nullable=True, index=True
-    )
-    expires_at: Mapped[Optional[datetime]] = mapped_column(
-        UTCDateTime, nullable=True, index=True
-    )
-    suspected_issue: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    crop_growth_stage: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    inspection_instructions: Mapped[Optional[Text]] = mapped_column(Text, nullable=True)
-    max_distance_km: Mapped[Optional[float]] = mapped_column(
-        Numeric(6, 2), nullable=True
-    )
-    required_expertise: Mapped[Optional[list]] = mapped_column(
-        JSON, default=list, nullable=False
-    )
+    deadline: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True, index=True)
+    expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True, index=True)
+    suspected_issue: Mapped[str | None] = mapped_column(Text, nullable=True)
+    crop_growth_stage: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    inspection_instructions: Mapped[Text | None] = mapped_column(Text, nullable=True)
+    max_distance_km: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
+    required_expertise: Mapped[list | None] = mapped_column(JSON, default=list, nullable=False)
     """List of required expertise areas (e.g., ['rice_blast', 'field_scouting'])."""
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -675,7 +586,8 @@ class InspectionTask(Base, TimestampMixin):
             name="ck_task_resolution_range",
         ),
         CheckConstraint(
-            "task_type IN ('hotspot_verification', 'routine_scouting', 'recovery_inspection', 'expert_review')",
+            "task_type IN ('hotspot_verification', 'routine_scouting', "
+            "'recovery_inspection', 'expert_review')",
             name="ck_task_type",
         ),
         CheckConstraint(
@@ -683,7 +595,9 @@ class InspectionTask(Base, TimestampMixin):
             name="ck_task_priority",
         ),
         CheckConstraint(
-            "status IN ('CREATED', 'AVAILABLE', 'ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'SUBMITTED', 'UNDER_REVIEW', 'VERIFIED', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'REASSIGNED')",
+            "status IN ('CREATED', 'AVAILABLE', 'ASSIGNED', 'ACCEPTED', "
+            "'IN_PROGRESS', 'SUBMITTED', 'UNDER_REVIEW', 'VERIFIED', "
+            "'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'REASSIGNED')",
             name="ck_task_status",
         ),
         CheckConstraint(
@@ -707,26 +621,22 @@ class TaskAssignment(Base, TimestampMixin):
         Index("ix_task_assign_at", "assigned_at"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("tas")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("tas"))
     task_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("inspection_tasks.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        String(64),
+        ForeignKey("inspection_tasks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    assigned_at: Mapped[datetime] = mapped_column(
-        UTCDateTime, default=utc_now, nullable=False
-    )
+    assigned_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     assigned_by: Mapped[str] = mapped_column(String(64), nullable=False)
     assignment_type: Mapped[str] = mapped_column(String(20), nullable=False)
     """automatic | voluntary"""
-    accepted_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
-    declined_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
-    distance_km: Mapped[Optional[float]] = mapped_column(
-        Numeric(6, 2), nullable=True
-    )
+    accepted_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    declined_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    distance_km: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
@@ -739,20 +649,18 @@ class TaskStatusHistory(Base, TimestampMixin):
         Index("ix_task_hist_at", "created_at"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("tsh")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("tsh"))
     task_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("inspection_tasks.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        String(64),
+        ForeignKey("inspection_tasks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    from_status: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    from_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
     to_status: Mapped[str] = mapped_column(String(30), nullable=False)
     changed_by: Mapped[str] = mapped_column(String(64), nullable=False)
-    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        UTCDateTime, default=utc_now, nullable=False
-    )
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
@@ -775,41 +683,28 @@ class FieldAgentProfile(Base, TimestampMixin):
         Index("ix_field_agent_available", "is_available"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("fap")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("fap"))
     user_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    primary_geo_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    primary_geo_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     expertise_areas: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     """List of disease/pest expertise area codes."""
     crop_experience: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     """List of crop codes with experience."""
-    max_distance_km: Mapped[float] = mapped_column(
-        Numeric(6, 2), default=10.0, nullable=False
-    )
-    is_available: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False
-    )
-    current_lat: Mapped[Optional[float]] = mapped_column(
-        Numeric(10, 7), nullable=True
-    )
-    current_lng: Mapped[Optional[float]] = mapped_column(
-        Numeric(10, 7), nullable=True
-    )
-    location_updated_at: Mapped[Optional[datetime]] = mapped_column(
-        UTCDateTime, nullable=True
-    )
+    max_distance_km: Mapped[float] = mapped_column(Numeric(6, 2), default=10.0, nullable=False)
+    is_available: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    current_lat: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+    current_lng: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+    location_updated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     current_workload: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     max_concurrent_tasks: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
-    completion_rate: Mapped[Optional[float]] = mapped_column(
-        Numeric(5, 4), nullable=True
-    )
+    completion_rate: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
     """Fraction of completed tasks (0.0 to 1.0)."""
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     __table_args__ = (
         CheckConstraint(
-            "max_distance_km > 0", name="ck_field_agent_positive_distance",
+            "max_distance_km > 0",
+            name="ck_field_agent_positive_distance",
         ),
         CheckConstraint(
             "current_workload >= 0 AND max_concurrent_tasks > 0",
@@ -831,21 +726,13 @@ class UserTaskAvailability(Base, TimestampMixin):
         Index("ix_availability_window", "available_from", "available_to"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("uta")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("uta"))
     user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     available_from: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     available_to: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
-    max_distance_km: Mapped[Optional[float]] = mapped_column(
-        Numeric(6, 2), nullable=True
-    )
-    preferred_crop_codes: Mapped[list] = mapped_column(
-        JSON, default=list, nullable=False
-    )
-    preferred_target_codes: Mapped[list] = mapped_column(
-        JSON, default=list, nullable=False
-    )
+    max_distance_km: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
+    preferred_crop_codes: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    preferred_target_codes: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -872,26 +759,22 @@ class InspectionResult(Base, TimestampMixin):
         Index("ix_inspection_cell", "h3_cell_id"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("ins")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("ins"))
     task_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("inspection_tasks.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        String(64),
+        ForeignKey("inspection_tasks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     inspected_by: Mapped[str] = mapped_column(String(64), nullable=False)
-    inspection_date: Mapped[datetime] = mapped_column(
-        UTCDateTime, default=utc_now, nullable=False
-    )
+    inspection_date: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     crop_code: Mapped[str] = mapped_column(String(60), nullable=False)
     target_code: Mapped[str] = mapped_column(String(80), nullable=False)
     found_issue: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    severity: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
-    ai_confidence: Mapped[Optional[float]] = mapped_column(
-        Numeric(5, 4), nullable=True
-    )
-    symptoms_observed: Mapped[Optional[Text]] = mapped_column(Text, nullable=True)
+    severity: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    ai_confidence: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+    symptoms_observed: Mapped[Text | None] = mapped_column(Text, nullable=True)
     photos_taken: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     videos_taken: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     farmer_notified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -908,33 +791,22 @@ class ExpertVerification(Base, TimestampMixin):
         Index("ix_expert_status", "verification_status"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("exv")
-    )
-    observation_id: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True, index=True
-    )
-    inspection_result_id: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True, index=True
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("exv"))
+    observation_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    inspection_result_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     verified_by: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    verification_status: Mapped[str] = mapped_column(
-        String(30), nullable=False, index=True
-    )
+    verification_status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     """confirmed | probable | rejected | duplicate | needs_visit | unresolved"""
-    corrected_target_code: Mapped[Optional[str]] = mapped_column(
-        String(80), nullable=True
-    )
-    corrected_severity: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
-    notes: Mapped[Optional[Text]] = mapped_column(Text, nullable=True)
-    verified_at: Mapped[datetime] = mapped_column(
-        UTCDateTime, default=utc_now, nullable=False
-    )
+    corrected_target_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    corrected_severity: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    notes: Mapped[Text | None] = mapped_column(Text, nullable=True)
+    verified_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     __table_args__ = (
         CheckConstraint(
-            "verification_status IN ('confirmed', 'probable', 'rejected', 'duplicate', 'needs_visit', 'unresolved')",
+            "verification_status IN ('confirmed', 'probable', 'rejected', "
+            "'duplicate', 'needs_visit', 'unresolved')",
             name="ck_expert_verification_status",
         ),
     )
@@ -955,26 +827,18 @@ class RecoveryMonitoringRecord(Base, TimestampMixin):
         Index("ix_recovery_follow_up", "follow_up_date"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("rcv")
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("rcv"))
     farm_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     h3_cell_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     crop_code: Mapped[str] = mapped_column(String(60), nullable=False)
     target_code: Mapped[str] = mapped_column(String(80), nullable=False)
     previous_severity: Mapped[str] = mapped_column(String(30), nullable=False)
     current_severity: Mapped[str] = mapped_column(String(30), nullable=False)
-    recovery_percentage: Mapped[float] = mapped_column(
-        Numeric(5, 2), default=0.0, nullable=False
-    )
-    recovery_status: Mapped[str] = mapped_column(
-        String(30), default="worsening", nullable=False
-    )
+    recovery_percentage: Mapped[float] = mapped_column(Numeric(5, 2), default=0.0, nullable=False)
+    recovery_status: Mapped[str] = mapped_column(String(30), default="worsening", nullable=False)
     """worsening | stable | partial_recovery | full_recovery"""
-    follow_up_date: Mapped[Optional[datetime]] = mapped_column(
-        UTCDateTime, nullable=True, index=True
-    )
-    notes: Mapped[Optional[Text]] = mapped_column(Text, nullable=True)
+    follow_up_date: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True, index=True)
+    notes: Mapped[Text | None] = mapped_column(Text, nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     __table_args__ = (

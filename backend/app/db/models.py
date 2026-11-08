@@ -25,9 +25,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
 
 from app.db.base import Base, TimestampMixin, UTCDateTime, new_id, utc_now
+from app.geo import models as _geo_models  # noqa: F401  (registers H3 geo tables)
 from app.modules.conversations import orm as _chat_orm
 from app.modules.video import orm as _video_orm
-from app.geo import models as _geo_models  # noqa: F401  (registers H3 geo tables)
 
 # Re-export the chat and video models so ``app.db.models`` remains the single
 # import surface for ORM models. The chat schema is owned by the conversations

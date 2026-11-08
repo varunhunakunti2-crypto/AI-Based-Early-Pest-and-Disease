@@ -6,19 +6,17 @@ outbreak analysis.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query, Path
+from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_principal
 from app.core.errors import ApiError
-from app.db.models import User
 from app.db.session import get_db
 from app.geo.hotspot_service import (
-    DEFAULT_HOTSPOT_THRESHOLDS,
     calculate_hotspot_for_cell,
     get_hotspot_classification_label,
     recalculate_all_hotspots,
@@ -34,9 +32,9 @@ class HotspotCalculateRequest(BaseModel):
     h3_cell_id: str
     target_type: str = Field(pattern="^(disease|pest)$")
     target_code: str
-    crop_code: Optional[str] = None
-    resolution: Optional[int] = Field(default=None, ge=0, le=15)
-    weather_risk_factor: Optional[float] = Field(default=None, ge=0, le=1)
+    crop_code: str | None = None
+    resolution: int | None = Field(default=None, ge=0, le=15)
+    weather_risk_factor: float | None = Field(default=None, ge=0, le=1)
 
 
 class HotspotResponse(BaseModel):
@@ -44,7 +42,7 @@ class HotspotResponse(BaseModel):
     resolution: int
     target_type: str
     target_code: str
-    crop_code: Optional[str]
+    crop_code: str | None
     classification: str
     score: float
     total_reports: int
@@ -53,10 +51,10 @@ class HotspotResponse(BaseModel):
     unverified_reports: int
     pending_reviews: int
     severity_distribution: dict
-    first_reported: Optional[str]
-    most_recent_report: Optional[str]
+    first_reported: str | None
+    most_recent_report: str | None
     recency_factor: float
-    weather_risk_factor: Optional[float]
+    weather_risk_factor: float | None
     neighbor_cells: list[str]
     historical_frequency: float
 
@@ -71,18 +69,18 @@ class HotspotClassificationInfo(BaseModel):
 class HotspotRecalculateRequest(BaseModel):
     target_type: str = Field(pattern="^(disease|pest)$")
     target_code: str
-    crop_code: Optional[str] = None
-    resolution: Optional[int] = Field(default=None, ge=0, le=15)
+    crop_code: str | None = None
+    resolution: int | None = Field(default=None, ge=0, le=15)
 
 
 class NearbyHotspotsRequest(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lng: float = Field(ge=-180, le=180)
     radius_km: float = Field(gt=0, le=100)
-    resolution: Optional[int] = Field(default=None, ge=0, le=15)
-    target_type: Optional[str] = Field(default=None, pattern="^(disease|pest)$")
-    target_code: Optional[str] = None
-    min_classification: Optional[str] = Field(default="low", pattern="^(low|moderate|high|critical)$")
+    resolution: int | None = Field(default=None, ge=0, le=15)
+    target_type: str | None = Field(default=None, pattern="^(disease|pest)$")
+    target_code: str | None = None
+    min_classification: str | None = Field(default="low", pattern="^(low|moderate|high|critical)$")
 
 
 @router.post("/calculate", response_model=HotspotResponse)
@@ -114,7 +112,6 @@ def update_hotspot(
     db: Session = Depends(get_db),
 ) -> dict:
     """Calculate and persist a hotspot cluster for an H3 cell."""
-    from app.db.models import HotspotCluster
 
     cluster = update_hotspot_cluster(
         db=db,
@@ -181,7 +178,7 @@ def list_classifications() -> list[HotspotClassificationInfo]:
 @router.get("/cells/{cell_id}/hotspots")
 def cell_hotspots(
     cell_id: str = Path(..., description="H3 cell ID"),
-    resolution: Optional[int] = Query(default=None, ge=0, le=15),
+    resolution: int | None = Query(default=None, ge=0, le=15),
     user=Depends(get_principal),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -195,20 +192,18 @@ def nearby_hotspots(
     lat: float = Query(ge=-90, le=90),
     lng: float = Query(ge=-180, le=180),
     radius_km: float = Query(gt=0, le=100, default=10),
-    resolution: Optional[int] = Query(default=None, ge=0, le=15),
-    target_type: Optional[str] = Query(default=None, pattern="^(disease|pest)$"),
-    target_code: Optional[str] = Query(default=None),
+    resolution: int | None = Query(default=None, ge=0, le=15),
+    target_type: str | None = Query(default=None, pattern="^(disease|pest)$"),
+    target_code: str | None = Query(default=None),
     min_classification: str = Query(default="low", pattern="^(low|moderate|high|critical)$"),
     user=Depends(get_principal),
     db: Session = Depends(get_db),
 ) -> dict:
     """Find hotspots near a location."""
-    from app.geo.service import find_nearby_cells
     from app.db.models import HotspotCluster
+    from app.geo.service import find_nearby_cells
 
-    nearby = find_nearby_cells(
-        lat=lat, lng=lng, radius_km=radius_km, resolution=resolution
-    )
+    nearby = find_nearby_cells(lat=lat, lng=lng, radius_km=radius_km, resolution=resolution)
 
     classification_order = {"low": 0, "moderate": 1, "high": 2, "critical": 3}
     min_order = classification_order.get(min_classification, 0)
@@ -224,19 +219,24 @@ def nearby_hotspots(
         rows = db.scalars(query).all()
         for row in rows:
             if classification_order.get(row.classification, 0) >= min_order:
-                hotspots.append({
-                    "cell_id": row.h3_cell_id,
-                    "target_type": row.target_type,
-                    "target_code": row.target_code,
-                    "crop_code": row.crop_code,
-                    "classification": row.classification,
-                    "score": float(row.score),
-                    "distance_km": cell_info["distance_km"],
-                    "unique_affected_farms": row.unique_affected_farms,
-                    "calculated_at": row.calculated_at.isoformat(),
-                })
+                hotspots.append(
+                    {
+                        "cell_id": row.h3_cell_id,
+                        "target_type": row.target_type,
+                        "target_code": row.target_code,
+                        "crop_code": row.crop_code,
+                        "classification": row.classification,
+                        "score": float(row.score),
+                        "distance_km": cell_info["distance_km"],
+                        "unique_affected_farms": row.unique_affected_farms,
+                        "calculated_at": row.calculated_at.isoformat(),
+                    }
+                )
 
-    hotspots.sort(key=lambda x: (classification_order.get(x["classification"], 0), -x["distance_km"]), reverse=True)
+    hotspots.sort(
+        key=lambda x: (classification_order.get(x["classification"], 0), -x["distance_km"]),
+        reverse=True,
+    )
 
     return {
         "center": {"lat": lat, "lng": lng},
@@ -290,8 +290,8 @@ def record_hotspot_snapshot(
 @router.get("/history/{cell_id}")
 def hotspot_history(
     cell_id: str = Path(..., description="H3 cell ID"),
-    target_type: Optional[str] = Query(default=None, pattern="^(disease|pest)$"),
-    target_code: Optional[str] = Query(default=None),
+    target_type: str | None = Query(default=None, pattern="^(disease|pest)$"),
+    target_code: str | None = Query(default=None),
     days: int = Query(default=30, ge=1, le=365),
     user=Depends(get_principal),
     db: Session = Depends(get_db),

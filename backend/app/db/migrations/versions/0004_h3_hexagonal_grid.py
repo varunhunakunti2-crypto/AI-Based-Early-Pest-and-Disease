@@ -61,9 +61,7 @@ def upgrade() -> None:
             "resolution >= 0 AND resolution <= 15",
             name="ck_h3_cells_resolution_range",
         ),
-        sa.CheckConstraint(
-            "center_lat >= -90 AND center_lat <= 90", name="ck_h3_cells_lat_range"
-        ),
+        sa.CheckConstraint("center_lat >= -90 AND center_lat <= 90", name="ck_h3_cells_lat_range"),
         sa.CheckConstraint(
             "center_lng >= -180 AND center_lng <= 180", name="ck_h3_cells_lng_range"
         ),
@@ -89,9 +87,7 @@ def upgrade() -> None:
         sa.Column("h3_cell_id", sa.String(length=32), nullable=False),
         sa.Column("resolution", sa.Integer(), nullable=False),
         sa.Column("overlap_area_m2", sa.Numeric(precision=12, scale=2), nullable=True),
-        sa.Column(
-            "overlap_percentage", sa.Numeric(precision=5, scale=2), nullable=True
-        ),
+        sa.Column("overlap_percentage", sa.Numeric(precision=5, scale=2), nullable=True),
         sa.Column("is_primary", sa.Boolean(), nullable=False, server_default=sa.text("0")),
         sa.Column("is_demo", sa.Boolean(), nullable=False, server_default=sa.text("0")),
         sa.Column(
@@ -107,9 +103,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id", name="pk_farm_hexagon_assignments"),
-        sa.UniqueConstraint(
-            "farm_id", "h3_cell_id", name="uq_farm_hexagon_assignment"
-        ),
+        sa.UniqueConstraint("farm_id", "h3_cell_id", name="uq_farm_hexagon_assignment"),
         sa.CheckConstraint(
             "resolution >= 0 AND resolution <= 15",
             name="ck_farm_hex_resolution_range",
@@ -175,7 +169,8 @@ def upgrade() -> None:
             name="ck_geo_obs_reporter_type",
         ),
         sa.CheckConstraint(
-            "verification_status IN ('unverified', 'pending_review', 'confirmed', 'probable', 'rejected', 'duplicate')",
+            "verification_status IN ('unverified', 'pending_review', 'confirmed', "
+            "'probable', 'rejected', 'duplicate')",
             name="ck_geo_obs_verification_status",
         ),
         sa.CheckConstraint(
@@ -189,9 +184,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_geo_obs_cell", "geo_observations", ["h3_cell_id"])
     op.create_index("ix_geo_obs_geo", "geo_observations", ["geo_code"])
-    op.create_index(
-        "ix_geo_obs_crop_target", "geo_observations", ["crop_code", "target_code"]
-    )
+    op.create_index("ix_geo_obs_crop_target", "geo_observations", ["crop_code", "target_code"])
     op.create_index("ix_geo_obs_event", "geo_observations", ["event_date"])
     op.create_index("ix_geo_obs_observation", "geo_observations", ["observation_id"])
 
@@ -235,7 +228,10 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_disease_reports"),
         sa.UniqueConstraint(
-            "h3_cell_id", "target_code", "event_date", "report_source",
+            "h3_cell_id",
+            "target_code",
+            "event_date",
+            "report_source",
             name="uq_disease_report_unique",
         ),
         sa.CheckConstraint(
@@ -294,7 +290,10 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_pest_reports"),
         sa.UniqueConstraint(
-            "h3_cell_id", "target_code", "event_date", "report_source",
+            "h3_cell_id",
+            "target_code",
+            "event_date",
+            "report_source",
             name="uq_pest_report_unique",
         ),
         sa.CheckConstraint(
@@ -330,7 +329,9 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("'low'"),
         ),
-        sa.Column("score", sa.Numeric(precision=6, scale=4), nullable=False, server_default=sa.text("0.0")),
+        sa.Column(
+            "score", sa.Numeric(precision=6, scale=4), nullable=False, server_default=sa.text("0.0")
+        ),
         sa.Column("total_reports", sa.Integer(), nullable=False, server_default=sa.text("0")),
         sa.Column(
             "unique_affected_farms", sa.Integer(), nullable=False, server_default=sa.text("0")
@@ -344,7 +345,10 @@ def upgrade() -> None:
         sa.Column("first_reported", sa.DateTime(timezone=True), nullable=True),
         sa.Column("most_recent_report", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
-            "historical_frequency", sa.Numeric(precision=6, scale=4), nullable=False, server_default=sa.text("0.0")
+            "historical_frequency",
+            sa.Numeric(precision=6, scale=4),
+            nullable=False,
+            server_default=sa.text("0.0"),
         ),
         sa.Column("weather_risk_factor", sa.Numeric(precision=5, scale=4), nullable=True),
         sa.Column(
@@ -359,7 +363,10 @@ def upgrade() -> None:
         sa.Column("is_demo", sa.Boolean(), nullable=False, server_default=sa.text("0")),
         sa.PrimaryKeyConstraint("id", name="pk_hotspot_clusters"),
         sa.UniqueConstraint(
-            "h3_cell_id", "target_type", "target_code", "resolution",
+            "h3_cell_id",
+            "target_type",
+            "target_code",
+            "resolution",
             name="uq_hotspot_cluster_unique",
         ),
         sa.CheckConstraint(
@@ -371,11 +378,10 @@ def upgrade() -> None:
             name="ck_hotspot_classification",
         ),
         sa.CheckConstraint("score >= 0 AND score <= 1", name="ck_hotspot_score_range"),
+        sa.CheckConstraint("target_type IN ('disease', 'pest')", name="ck_hotspot_target_type"),
         sa.CheckConstraint(
-            "target_type IN ('disease', 'pest')", name="ck_hotspot_target_type"
-        ),
-        sa.CheckConstraint(
-            "weather_risk_factor IS NULL OR (weather_risk_factor >= 0 AND weather_risk_factor <= 1)",
+            "weather_risk_factor IS NULL OR (weather_risk_factor >= 0 "
+            "AND weather_risk_factor <= 1)",
             name="ck_hotspot_weather_risk_range",
         ),
     )
@@ -396,7 +402,9 @@ def upgrade() -> None:
         sa.Column("target_code", sa.String(length=80), nullable=False),
         sa.Column("snapshot_date", sa.DateTime(timezone=True), nullable=False),
         sa.Column("classification", sa.String(length=20), nullable=False),
-        sa.Column("score", sa.Numeric(precision=6, scale=4), nullable=False, server_default=sa.text("0.0")),
+        sa.Column(
+            "score", sa.Numeric(precision=6, scale=4), nullable=False, server_default=sa.text("0.0")
+        ),
         sa.Column(
             "unique_affected_farms", sa.Integer(), nullable=False, server_default=sa.text("0")
         ),
@@ -432,10 +440,30 @@ def upgrade() -> None:
         sa.Column("target_code", sa.String(length=80), nullable=False),
         sa.Column("valid_from", sa.DateTime(timezone=True), nullable=False),
         sa.Column("valid_to", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("risk_score", sa.Numeric(precision=6, scale=4), nullable=False, server_default=sa.text("0.0")),
-        sa.Column("weather_risk", sa.Numeric(precision=6, scale=4), nullable=False, server_default=sa.text("0.0")),
-        sa.Column("biological_risk", sa.Numeric(precision=6, scale=4), nullable=False, server_default=sa.text("0.0")),
-        sa.Column("historical_risk", sa.Numeric(precision=6, scale=4), nullable=False, server_default=sa.text("0.0")),
+        sa.Column(
+            "risk_score",
+            sa.Numeric(precision=6, scale=4),
+            nullable=False,
+            server_default=sa.text("0.0"),
+        ),
+        sa.Column(
+            "weather_risk",
+            sa.Numeric(precision=6, scale=4),
+            nullable=False,
+            server_default=sa.text("0.0"),
+        ),
+        sa.Column(
+            "biological_risk",
+            sa.Numeric(precision=6, scale=4),
+            nullable=False,
+            server_default=sa.text("0.0"),
+        ),
+        sa.Column(
+            "historical_risk",
+            sa.Numeric(precision=6, scale=4),
+            nullable=False,
+            server_default=sa.text("0.0"),
+        ),
         sa.Column(
             "risk_label",
             sa.String(length=20),
@@ -460,7 +488,10 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_regional_risk_scores"),
         sa.UniqueConstraint(
-            "h3_cell_id", "crop_code", "target_code", "valid_from",
+            "h3_cell_id",
+            "crop_code",
+            "target_code",
+            "valid_from",
             name="uq_risk_score_unique",
         ),
         sa.CheckConstraint(
@@ -468,11 +499,10 @@ def upgrade() -> None:
             name="ck_risk_resolution_range",
         ),
         sa.CheckConstraint("risk_score >= 0 AND risk_score <= 1", name="ck_risk_score_range"),
+        sa.CheckConstraint("weather_risk >= 0 AND weather_risk <= 1", name="ck_risk_weather_range"),
         sa.CheckConstraint(
-            "weather_risk >= 0 AND weather_risk <= 1", name="ck_risk_weather_range"
-        ),
-        sa.CheckConstraint(
-            "valid_to > valid_from", name="ck_risk_valid_window",
+            "valid_to > valid_from",
+            name="ck_risk_valid_window",
         ),
         sa.CheckConstraint(
             "risk_label IN ('insufficient_data', 'low', 'moderate', 'high', 'critical')",
@@ -480,9 +510,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_risk_cell", "regional_risk_scores", ["h3_cell_id"])
-    op.create_index(
-        "ix_risk_crop_target", "regional_risk_scores", ["crop_code", "target_code"]
-    )
+    op.create_index("ix_risk_crop_target", "regional_risk_scores", ["crop_code", "target_code"])
     op.create_index("ix_risk_valid", "regional_risk_scores", ["valid_from", "valid_to"])
 
     # ------------------------------------------------------------------
@@ -502,11 +530,12 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("variables", sa.JSON(), nullable=False, server_default=sa.text("'{}'::json")),
         sa.Column(
-            "variables", sa.JSON(), nullable=False, server_default=sa.text("'{}'::json")
-        ),
-        sa.Column(
-            "completeness", sa.Numeric(precision=4, scale=3), nullable=False, server_default=sa.text("0.0")
+            "completeness",
+            sa.Numeric(precision=4, scale=3),
+            nullable=False,
+            server_default=sa.text("0.0"),
         ),
         sa.Column("is_stale", sa.Boolean(), nullable=False, server_default=sa.text("0")),
         sa.Column("is_demo", sa.Boolean(), nullable=False, server_default=sa.text("0")),
@@ -524,7 +553,9 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_weather_cell_records"),
         sa.UniqueConstraint(
-            "h3_cell_id", "source", "source_timestamp",
+            "h3_cell_id",
+            "source",
+            "source_timestamp",
             name="uq_weather_cell_unique",
         ),
         sa.CheckConstraint(
@@ -536,7 +567,8 @@ def upgrade() -> None:
             name="ck_weather_cell_completeness_range",
         ),
         sa.CheckConstraint(
-            "expires_at > source_timestamp", name="ck_weather_cell_expires",
+            "expires_at > source_timestamp",
+            name="ck_weather_cell_expires",
         ),
     )
     op.create_index("ix_weather_cell", "weather_cell_records", ["h3_cell_id"])
@@ -554,11 +586,20 @@ def upgrade() -> None:
         sa.Column("crop_code", sa.String(length=60), nullable=False),
         sa.Column("target_code", sa.String(length=80), nullable=False),
         sa.Column("task_type", sa.String(length=30), nullable=False),
-        sa.Column("priority", sa.String(length=20), nullable=False, server_default=sa.text("'moderate'")),
-        sa.Column("status", sa.String(length=30), nullable=False, server_default=sa.text("'CREATED'")),
+        sa.Column(
+            "priority", sa.String(length=20), nullable=False, server_default=sa.text("'moderate'")
+        ),
+        sa.Column(
+            "status", sa.String(length=30), nullable=False, server_default=sa.text("'CREATED'")
+        ),
         sa.Column("assigned_to", sa.String(length=64), nullable=True),
         sa.Column("assigned_by", sa.String(length=64), nullable=True),
-        sa.Column("assignment_type", sa.String(length=20), nullable=False, server_default=sa.text("'automatic'")),
+        sa.Column(
+            "assignment_type",
+            sa.String(length=20),
+            nullable=False,
+            server_default=sa.text("'automatic'"),
+        ),
         sa.Column("deadline", sa.DateTime(timezone=True), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("suspected_issue", sa.Text(), nullable=True),
@@ -588,14 +629,17 @@ def upgrade() -> None:
             name="ck_task_resolution_range",
         ),
         sa.CheckConstraint(
-            "task_type IN ('hotspot_verification', 'routine_scouting', 'recovery_inspection', 'expert_review')",
+            "task_type IN ('hotspot_verification', 'routine_scouting', "
+            "'recovery_inspection', 'expert_review')",
             name="ck_task_type",
         ),
         sa.CheckConstraint(
             "priority IN ('low', 'moderate', 'high', 'urgent')", name="ck_task_priority"
         ),
         sa.CheckConstraint(
-            "status IN ('CREATED', 'AVAILABLE', 'ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'SUBMITTED', 'UNDER_REVIEW', 'VERIFIED', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'REASSIGNED')",
+            "status IN ('CREATED', 'AVAILABLE', 'ASSIGNED', 'ACCEPTED', "
+            "'IN_PROGRESS', 'SUBMITTED', 'UNDER_REVIEW', 'VERIFIED', "
+            "'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'REASSIGNED')",
             name="ck_task_status",
         ),
         sa.CheckConstraint(
@@ -610,9 +654,7 @@ def upgrade() -> None:
     op.create_index("ix_task_cell", "inspection_tasks", ["h3_cell_id"])
     op.create_index("ix_task_status", "inspection_tasks", ["status"])
     op.create_index("ix_task_priority", "inspection_tasks", ["priority"])
-    op.create_index(
-        "ix_task_crop_target", "inspection_tasks", ["crop_code", "target_code"]
-    )
+    op.create_index("ix_task_crop_target", "inspection_tasks", ["crop_code", "target_code"])
     op.create_index("ix_task_created", "inspection_tasks", ["created_at"])
     op.create_index("ix_task_deadline", "inspection_tasks", ["deadline"])
     op.create_index("ix_task_assigned", "inspection_tasks", ["assigned_to"])
@@ -716,17 +758,16 @@ def upgrade() -> None:
             "crop_experience", sa.JSON(), nullable=False, server_default=sa.text("'[]'::json")
         ),
         sa.Column(
-            "max_distance_km", sa.Numeric(precision=6, scale=2), nullable=False, server_default=sa.text("10.0")
+            "max_distance_km",
+            sa.Numeric(precision=6, scale=2),
+            nullable=False,
+            server_default=sa.text("10.0"),
         ),
-        sa.Column(
-            "is_available", sa.Boolean(), nullable=False, server_default=sa.text("1")
-        ),
+        sa.Column("is_available", sa.Boolean(), nullable=False, server_default=sa.text("1")),
         sa.Column("current_lat", sa.Numeric(precision=10, scale=7), nullable=True),
         sa.Column("current_lng", sa.Numeric(precision=10, scale=7), nullable=True),
         sa.Column("location_updated_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "current_workload", sa.Integer(), nullable=False, server_default=sa.text("0")
-        ),
+        sa.Column("current_workload", sa.Integer(), nullable=False, server_default=sa.text("0")),
         sa.Column(
             "max_concurrent_tasks", sa.Integer(), nullable=False, server_default=sa.text("3")
         ),
@@ -746,9 +787,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_field_agent_profiles"),
         sa.UniqueConstraint("user_id", name="uq_field_agent_profiles_user_id"),
-        sa.CheckConstraint(
-            "max_distance_km > 0", name="ck_field_agent_positive_distance"
-        ),
+        sa.CheckConstraint("max_distance_km > 0", name="ck_field_agent_positive_distance"),
         sa.CheckConstraint(
             "current_workload >= 0 AND max_concurrent_tasks > 0",
             name="ck_field_agent_workload_positive",
@@ -759,12 +798,8 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_field_agent_user", "field_agent_profiles", ["user_id"])
-    op.create_index(
-        "ix_field_agent_geo", "field_agent_profiles", ["primary_geo_code"]
-    )
-    op.create_index(
-        "ix_field_agent_available", "field_agent_profiles", ["is_available"]
-    )
+    op.create_index("ix_field_agent_geo", "field_agent_profiles", ["primary_geo_code"])
+    op.create_index("ix_field_agent_available", "field_agent_profiles", ["is_available"])
 
     # ------------------------------------------------------------------
     # user_task_availability
@@ -780,7 +815,10 @@ def upgrade() -> None:
             "preferred_crop_codes", sa.JSON(), nullable=False, server_default=sa.text("'[]'::json")
         ),
         sa.Column(
-            "preferred_target_codes", sa.JSON(), nullable=False, server_default=sa.text("'[]'::json")
+            "preferred_target_codes",
+            sa.JSON(),
+            nullable=False,
+            server_default=sa.text("'[]'::json"),
         ),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
         sa.Column("is_demo", sa.Boolean(), nullable=False, server_default=sa.text("0")),
@@ -797,9 +835,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id", name="pk_user_task_availability"),
-        sa.CheckConstraint(
-            "available_to > available_from", name="ck_availability_window"
-        ),
+        sa.CheckConstraint("available_to > available_from", name="ck_availability_window"),
         sa.CheckConstraint(
             "max_distance_km IS NULL OR max_distance_km > 0",
             name="ck_availability_positive_distance",
@@ -893,7 +929,8 @@ def upgrade() -> None:
         sa.Column("is_demo", sa.Boolean(), nullable=False, server_default=sa.text("0")),
         sa.PrimaryKeyConstraint("id", name="pk_expert_verifications"),
         sa.CheckConstraint(
-            "verification_status IN ('confirmed', 'probable', 'rejected', 'duplicate', 'needs_visit', 'unresolved')",
+            "verification_status IN ('confirmed', 'probable', 'rejected', "
+            "'duplicate', 'needs_visit', 'unresolved')",
             name="ck_expert_verification_status",
         ),
     )
@@ -915,7 +952,10 @@ def upgrade() -> None:
         sa.Column("previous_severity", sa.String(length=30), nullable=False),
         sa.Column("current_severity", sa.String(length=30), nullable=False),
         sa.Column(
-            "recovery_percentage", sa.Numeric(precision=5, scale=2), nullable=False, server_default=sa.text("0.0")
+            "recovery_percentage",
+            sa.Numeric(precision=5, scale=2),
+            nullable=False,
+            server_default=sa.text("0.0"),
         ),
         sa.Column(
             "recovery_status",
@@ -950,9 +990,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_recovery_cell", "recovery_monitoring_records", ["h3_cell_id"])
     op.create_index("ix_recovery_farm", "recovery_monitoring_records", ["farm_id"])
-    op.create_index(
-        "ix_recovery_follow_up", "recovery_monitoring_records", ["follow_up_date"]
-    )
+    op.create_index("ix_recovery_follow_up", "recovery_monitoring_records", ["follow_up_date"])
 
 
 def downgrade() -> None:

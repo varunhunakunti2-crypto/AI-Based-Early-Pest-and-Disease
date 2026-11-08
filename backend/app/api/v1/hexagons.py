@@ -6,7 +6,7 @@ and hexagon-level data aggregation.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, Path
+from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from app.api.deps import get_principal
 from app.core.errors import ApiError
 from app.db.models import User
 from app.db.session import get_db
+from app.geo import geo_to_h3
 from app.geo.service import (
     H3ServiceError,
     aggregate_observations_in_cell,
@@ -23,9 +24,9 @@ from app.geo.service import (
     generate_grid_in_bbox,
     get_cell_for_coordinates,
     get_cell_info,
+    get_children,
     get_farms_in_cell,
     get_hotspots_in_cell,
-    get_children,
     get_neighbours,
     get_parent,
     resolve_cell_id,
@@ -241,9 +242,7 @@ def cell_from_coordinates(
     user: User = Depends(get_principal),
 ) -> CellInfoResponse:
     """Return the H3 cell containing given coordinates."""
-    info = get_cell_for_coordinates(
-        lat=payload.lat, lng=payload.lng, resolution=payload.resolution
-    )
+    info = get_cell_for_coordinates(lat=payload.lat, lng=payload.lng, resolution=payload.resolution)
     return CellInfoResponse(**info)
 
 

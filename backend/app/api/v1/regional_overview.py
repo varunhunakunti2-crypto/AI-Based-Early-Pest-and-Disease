@@ -5,26 +5,18 @@ Provides a unified view of agricultural risk across H3 hexagons for map dashboar
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_principal
-from app.core.errors import ApiError
 from app.db.models import (
-    DiseaseReport,
     HotspotCluster,
-    PestReport,
     RegionalRiskScore,
-    User,
-    WeatherCellRecord,
 )
 from app.db.session import get_db
-from app.geo import generate_grid, geo_to_h3, h3_get_resolution
-from app.geo.hotspot_service import DEFAULT_HOTSPOT_THRESHOLDS, classify_hotspot
+from app.geo import generate_grid
 
 router = APIRouter(tags=["regional-overview"])
 
@@ -35,11 +27,11 @@ class HexagonSummary(BaseModel):
     center_lng: float
     resolution: int
     area_m2: float
-    disease_hotspot: Optional[dict] = None
-    pest_hotspot: Optional[dict] = None
-    risk_score: Optional[float] = None
-    risk_label: Optional[str] = None
-    weather_risk: Optional[float] = None
+    disease_hotspot: dict | None = None
+    pest_hotspot: dict | None = None
+    risk_score: float | None = None
+    risk_label: str | None = None
+    weather_risk: float | None = None
 
 
 class RegionalOverviewResponse(BaseModel):
@@ -53,7 +45,7 @@ class HotspotSummary(BaseModel):
     cell_id: str
     target_type: str
     target_code: str
-    crop_code: Optional[str]
+    crop_code: str | None
     classification: str
     score: float
     unique_affected_farms: int
@@ -83,6 +75,7 @@ def regional_hexagons(
 
         # Get cell center and area
         from app.geo import h3_to_center, hex_area_m2
+
         center_lat, center_lng = h3_to_center(cell_id_int)
         area = hex_area_m2(resolution)
 
@@ -129,28 +122,32 @@ def regional_hexagons(
 
         # Regional risk (latest for any crop/target)
         rr = db.scalars(
-            select(RegionalRiskScore).where(
+            select(RegionalRiskScore)
+            .where(
                 RegionalRiskScore.h3_cell_id == cell_id_str,
                 RegionalRiskScore.resolution == resolution,
-            ).order_by(RegionalRiskScore.valid_from.desc())
+            )
+            .order_by(RegionalRiskScore.valid_from.desc())
         ).first()
         if rr:
             risk_score = float(rr.risk_score)
             risk_label = rr.risk_label
             weather_risk = float(rr.weather_risk)
 
-        hexagons.append(HexagonSummary(
-            cell_id=cell_id_str,
-            center_lat=float(center_lat),
-            center_lng=float(center_lng),
-            resolution=resolution,
-            area_m2=float(area),
-            disease_hotspot=disease_hotspot,
-            pest_hotspot=pest_hotspot,
-            risk_score=risk_score,
-            risk_label=risk_label,
-            weather_risk=weather_risk,
-        ))
+        hexagons.append(
+            HexagonSummary(
+                cell_id=cell_id_str,
+                center_lat=float(center_lat),
+                center_lng=float(center_lng),
+                resolution=resolution,
+                area_m2=float(area),
+                disease_hotspot=disease_hotspot,
+                pest_hotspot=pest_hotspot,
+                risk_score=risk_score,
+                risk_label=risk_label,
+                weather_risk=weather_risk,
+            )
+        )
 
     return RegionalOverviewResponse(
         bounds={
@@ -172,7 +169,7 @@ def regional_hotspots(
     lat_max: float = Query(ge=-90, le=90),
     lng_max: float = Query(ge=-180, le=180),
     resolution: int = Query(default=9, ge=0, le=15),
-    target_type: Optional[str] = Query(default=None, pattern="^(disease|pest)$"),
+    target_type: str | None = Query(default=None, pattern="^(disease|pest)$"),
     min_classification: str = Query(default="low", pattern="^(low|moderate|high|critical)$"),
     user=Depends(get_principal),
     db: Session = Depends(get_db),
@@ -195,15 +192,17 @@ def regional_hotspots(
     hotspots = []
     for row in rows:
         if classification_order.get(row.classification, 0) >= min_order:
-            hotspots.append(HotspotSummary(
-                cell_id=row.h3_cell_id,
-                target_type=row.target_type,
-                target_code=row.target_code,
-                crop_code=row.crop_code,
-                classification=row.classification,
-                score=float(row.score),
-                unique_affected_farms=row.unique_affected_farms,
-            ))
+            hotspots.append(
+                HotspotSummary(
+                    cell_id=row.h3_cell_id,
+                    target_type=row.target_type,
+                    target_code=row.target_code,
+                    crop_code=row.crop_code,
+                    classification=row.classification,
+                    score=float(row.score),
+                    unique_affected_farms=row.unique_affected_farms,
+                )
+            )
 
     return HotspotsListResponse(
         hotspots=hotspots,
@@ -253,14 +252,15 @@ def regional_summary(
 
     # Critical/hot hotspots needing attention
     critical_hotspots = [
-        h for h in disease_hotspots + pest_hotspots
-        if h.classification in ("high", "critical")
+        h for h in disease_hotspots + pest_hotspots if h.classification in ("high", "critical")
     ]
 
     return {
         "bounds": {
-            "lat_min": lat_min, "lng_min": lng_min,
-            "lat_max": lat_max, "lng_max": lng_max,
+            "lat_min": lat_min,
+            "lng_min": lng_min,
+            "lat_max": lat_max,
+            "lng_max": lng_max,
         },
         "resolution": resolution,
         "total_cells": len(cell_ids),

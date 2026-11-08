@@ -6,23 +6,17 @@ with photo/video evidence, symptom descriptions, and severity assessments.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
-
-from fastapi import APIRouter, Depends, Query, Path, status
+from fastapi import APIRouter, Depends, Path, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_principal, require_roles
+from app.api.deps import get_principal
 from app.core.errors import ApiError
 from app.db.models import (
     InspectionResult,
     InspectionTask,
-    User,
-    WeatherCellRecord,
 )
 from app.db.session import get_db
-from app.geo import geo_to_h3
 from app.geo.hotspot_service import update_hotspot_cluster
 from app.geo.weather_risk_service import calculate_regional_risk
 
@@ -35,13 +29,9 @@ class InspectionResultSubmitRequest(BaseModel):
     crop_code: str
     target_code: str
     found_issue: bool = False
-    severity: Optional[str] = Field(
-        default=None, pattern="^(none|low|moderate|high|critical)$"
-    )
-    ai_confidence: Optional[float] = Field(
-        default=None, ge=0, le=1
-    )
-    symptoms_observed: Optional[str] = Field(default=None, max_length=2000)
+    severity: str | None = Field(default=None, pattern="^(none|low|moderate|high|critical)$")
+    ai_confidence: float | None = Field(default=None, ge=0, le=1)
+    symptoms_observed: str | None = Field(default=None, max_length=2000)
     photos_taken: int = Field(default=0, ge=0)
     videos_taken: int = Field(default=0, ge=0)
     farmer_notified: bool = False
@@ -56,9 +46,9 @@ class InspectionResultResponse(BaseModel):
     crop_code: str
     target_code: str
     found_issue: bool
-    severity: Optional[str]
-    ai_confidence: Optional[float]
-    symptoms_observed: Optional[str]
+    severity: str | None
+    ai_confidence: float | None
+    symptoms_observed: str | None
     photos_taken: int
     videos_taken: int
     farmer_notified: bool
@@ -169,9 +159,7 @@ def submit_inspection_result(
         target_code=result.target_code,
         found_issue=result.found_issue,
         severity=result.severity,
-        ai_confidence=(
-            float(result.ai_confidence) if result.ai_confidence else None
-        ),
+        ai_confidence=(float(result.ai_confidence) if result.ai_confidence else None),
         symptoms_observed=result.symptoms_observed,
         photos_taken=result.photos_taken,
         videos_taken=result.videos_taken,
@@ -209,9 +197,7 @@ def get_inspection_result(
         "target_code": result.target_code,
         "found_issue": result.found_issue,
         "severity": result.severity,
-        "ai_confidence": (
-            float(result.ai_confidence) if result.ai_confidence else None
-        ),
+        "ai_confidence": (float(result.ai_confidence) if result.ai_confidence else None),
         "symptoms_observed": result.symptoms_observed,
         "photos_taken": result.photos_taken,
         "videos_taken": result.videos_taken,
@@ -229,9 +215,7 @@ def list_task_results(
     """List all inspection results for a task."""
     from sqlalchemy import select
 
-    results = db.scalars(
-        select(InspectionResult).where(InspectionResult.task_id == task_id)
-    ).all()
+    results = db.scalars(select(InspectionResult).where(InspectionResult.task_id == task_id)).all()
 
     return {
         "task_id": task_id,
@@ -244,9 +228,7 @@ def list_task_results(
                 "target_code": r.target_code,
                 "found_issue": r.found_issue,
                 "severity": r.severity,
-                "ai_confidence": (
-                    float(r.ai_confidence) if r.ai_confidence else None
-                ),
+                "ai_confidence": (float(r.ai_confidence) if r.ai_confidence else None),
                 "photos_taken": r.photos_taken,
                 "videos_taken": r.videos_taken,
                 "farmer_notified": r.farmer_notified,

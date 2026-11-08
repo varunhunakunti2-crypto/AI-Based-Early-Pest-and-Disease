@@ -10,20 +10,15 @@ Do not recommend pesticides solely because weather conditions are favourable.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.h3_config import default_resolution
 from app.db.models import (
-    Crop,
     RegionalRiskScore,
     WeatherCellRecord,
-    GeoObservation,
 )
-from app.geo import geo_to_h3, h3_get_resolution
-
 
 # Default weather risk thresholds for common crop-disease combinations
 # These are starting points; should be calibrated with local agricultural data
@@ -85,7 +80,7 @@ def compute_weather_risk(
     weather_variables: dict,
     crop_code: str,
     target_code: str,
-    growth_stage: Optional[str] = None,
+    growth_stage: str | None = None,
 ) -> dict:
     """Compute weather suitability risk for a crop-disease combination.
 
@@ -126,7 +121,9 @@ def compute_weather_risk(
 
     # Humidity suitability (0-1)
     if humidity is not None:
-        humidity_score = min(1.0, humidity / max(humidity_min, 1)) if humidity < humidity_min else 1.0
+        humidity_score = (
+            min(1.0, humidity / max(humidity_min, 1)) if humidity < humidity_min else 1.0
+        )
     else:
         humidity_score = 0.5
     factors["humidity"] = round(humidity_score, 3)
@@ -151,10 +148,7 @@ def compute_weather_risk(
 
     # Combined weather risk (weighted average)
     weather_risk = (
-        0.3 * temp_score
-        + 0.3 * humidity_score
-        + 0.2 * rainfall_score
-        + 0.2 * wetness_score
+        0.3 * temp_score + 0.3 * humidity_score + 0.2 * rainfall_score + 0.2 * wetness_score
     )
 
     # Apply growth stage multiplier
@@ -262,8 +256,8 @@ def calculate_regional_risk(
     crop_code: str,
     target_code: str,
     target_type: str,
-    resolution: Optional[int] = None,
-    growth_stage: Optional[str] = None,
+    resolution: int | None = None,
+    growth_stage: str | None = None,
     valid_days: int = 7,
     is_demo: bool = False,
 ) -> RegionalRiskScore:
@@ -277,10 +271,12 @@ def calculate_regional_risk(
 
     # Get latest weather for the cell
     weather_row = db.scalars(
-        select(WeatherCellRecord).where(
+        select(WeatherCellRecord)
+        .where(
             WeatherCellRecord.h3_cell_id == h3_cell_id,
             WeatherCellRecord.resolution == resolution,
-        ).order_by(WeatherCellRecord.source_timestamp.desc())
+        )
+        .order_by(WeatherCellRecord.source_timestamp.desc())
     ).first()
 
     weather_risk = 0.0
@@ -351,11 +347,13 @@ def calculate_regional_risk(
     else:
         risk_label = "insufficient_data"
 
-    contributing_factors.update({
-        "weather_risk": weather_risk,
-        "biological_risk": biological_risk,
-        "historical_risk": historical_risk,
-    })
+    contributing_factors.update(
+        {
+            "weather_risk": weather_risk,
+            "biological_risk": biological_risk,
+            "historical_risk": historical_risk,
+        }
+    )
 
     now = datetime.utcnow()
     valid_from = now

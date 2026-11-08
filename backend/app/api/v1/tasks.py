@@ -5,22 +5,14 @@ Endpoints for task creation, assignment, acceptance, and lifecycle management.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional
-
-from fastapi import APIRouter, Depends, Query, Path, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_principal
 from app.core.errors import ApiError
-from app.db.models import User
 from app.db.session import get_db
 from app.geo.task_service import (
-    STATUS_ACCEPTED,
-    STATUS_AVAILABLE,
-    STATUS_COMPLETED,
-    STATUS_CREATED,
     TaskServiceError,
     accept_task,
     complete_task,
@@ -31,8 +23,8 @@ from app.geo.task_service import (
     get_available_tasks,
     get_user_tasks,
     reassign_task,
-    submit_task,
     start_task,
+    submit_task,
 )
 
 router = APIRouter(tags=["tasks"])
@@ -46,11 +38,11 @@ class TaskCreateRequest(BaseModel):
         pattern="^(hotspot_verification|routine_scouting|recovery_inspection|expert_review)$"
     )
     priority: str = Field(default="moderate", pattern="^(low|moderate|high|urgent)$")
-    deadline_hours: Optional[int] = Field(default=None, ge=1, le=720)
-    suspected_issue: Optional[str] = Field(default=None, max_length=500)
-    crop_growth_stage: Optional[str] = Field(default=None, max_length=50)
-    inspection_instructions: Optional[str] = Field(default=None, max_length=2000)
-    max_distance_km: Optional[float] = Field(default=None, gt=0, le=100)
+    deadline_hours: int | None = Field(default=None, ge=1, le=720)
+    suspected_issue: str | None = Field(default=None, max_length=500)
+    crop_growth_stage: str | None = Field(default=None, max_length=50)
+    inspection_instructions: str | None = Field(default=None, max_length=2000)
+    max_distance_km: float | None = Field(default=None, gt=0, le=100)
     required_expertise: list[str] = Field(default_factory=list)
     assignment_type: str = Field(default="automatic", pattern="^(automatic|voluntary)$")
 
@@ -64,8 +56,8 @@ class TaskResponse(BaseModel):
     priority: str
     status: str
     assignment_type: str
-    deadline: Optional[str]
-    suspected_issue: Optional[str]
+    deadline: str | None
+    suspected_issue: str | None
     created_at: str
 
 
@@ -93,12 +85,12 @@ class TaskCompleteRequest(BaseModel):
 class TaskReassignRequest(BaseModel):
     task_id: str
     new_user_id: str
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class EligibleUserResponse(BaseModel):
     user_id: str
-    distance_km: Optional[float]
+    distance_km: float | None
     current_workload: int
     max_concurrent_tasks: int
     completion_rate: float
@@ -115,9 +107,9 @@ class AvailableTaskResponse(BaseModel):
     target_code: str
     task_type: str
     priority: str
-    deadline: Optional[str]
-    suspected_issue: Optional[str]
-    distance_km: Optional[float]
+    deadline: str | None
+    suspected_issue: str | None
+    distance_km: float | None
     created_at: str
 
 
@@ -176,7 +168,10 @@ def list_available_tasks(
 
 @router.get("/my-tasks", response_model=list[TaskResponse])
 def list_my_tasks(
-    status: Optional[str] = Query(default=None, pattern="^(CREATED|AVAILABLE|ASSIGNED|ACCEPTED|IN_PROGRESS|SUBMITTED|UNDER_REVIEW|VERIFIED|COMPLETED|REJECTED|CANCELLED|EXPIRED|REASSIGNED)$"),
+    status: str | None = Query(
+        default=None,
+        pattern="^(CREATED|AVAILABLE|ASSIGNED|ACCEPTED|IN_PROGRESS|SUBMITTED|UNDER_REVIEW|VERIFIED|COMPLETED|REJECTED|CANCELLED|EXPIRED|REASSIGNED)$",
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     user=Depends(get_principal),
     db: Session = Depends(get_db),
@@ -344,8 +339,11 @@ def reassign_task_endpoint(
 
     try:
         task = reassign_task(
-            db, task_id=task_id, new_user_id=payload.new_user_id,
-            reassigned_by=user.id, reason=payload.reason,
+            db,
+            task_id=task_id,
+            new_user_id=payload.new_user_id,
+            reassigned_by=user.id,
+            reason=payload.reason,
         )
     except TaskServiceError as exc:
         raise ApiError(400, "task_error", str(exc)) from exc
@@ -374,8 +372,10 @@ def eligible_users_for_task(
     ),
     crop_code: str = Query(...),
     target_code: str = Query(...),
-    required_expertise: Optional[str] = Query(default=None, description="Comma-separated expertise list"),
-    max_distance_km: Optional[float] = Query(default=None, gt=0, le=100),
+    required_expertise: str | None = Query(
+        default=None, description="Comma-separated expertise list"
+    ),
+    max_distance_km: float | None = Query(default=None, gt=0, le=100),
     user=Depends(get_principal),
     db: Session = Depends(get_db),
 ) -> dict:

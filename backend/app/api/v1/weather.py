@@ -6,18 +6,16 @@ weather-supported risk indicators.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from typing import Optional
-
-from fastapi import APIRouter, Depends, Query, Path
+from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_principal
 from app.core.errors import ApiError
-from app.db.models import User, WeatherCellRecord
+from app.db.models import WeatherCellRecord
 from app.db.session import get_db
-from app.geo import geo_to_h3, h3_get_resolution
+from app.geo import geo_to_h3
 from app.geo.weather_risk_service import calculate_regional_risk
 
 router = APIRouter(tags=["weather"])
@@ -40,8 +38,8 @@ class WeatherRiskRequest(BaseModel):
     crop_code: str
     target_code: str
     target_type: str = Field(pattern="^(disease|pest)$")
-    resolution: Optional[int] = Field(default=None, ge=0, le=15)
-    growth_stage: Optional[str] = Field(default=None, max_length=50)
+    resolution: int | None = Field(default=None, ge=0, le=15)
+    growth_stage: str | None = Field(default=None, max_length=50)
 
 
 class WeatherRiskResponse(BaseModel):
@@ -61,15 +59,15 @@ class WeatherRiskResponse(BaseModel):
 class WeatherCellRequest(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lng: float = Field(ge=-180, le=180)
-    resolution: Optional[int] = Field(default=None, ge=0, le=15)
+    resolution: int | None = Field(default=None, ge=0, le=15)
 
 
-@router.get("/hexagon/{cell_id}", response_model=Optional[WeatherRecordResponse])
+@router.get("/hexagon/{cell_id}", response_model=WeatherRecordResponse | None)
 def get_weather_for_hexagon(
     cell_id: str = Path(..., description="H3 cell ID"),
     user=Depends(get_principal),
     db: Session = Depends(get_db),
-) -> Optional[WeatherRecordResponse]:
+) -> WeatherRecordResponse | None:
     """Return the latest weather record for an H3 cell."""
     from sqlalchemy import select
 
@@ -206,11 +204,13 @@ def get_regional_risk(
     from app.db.models import RegionalRiskScore
 
     row = db.scalars(
-        select(RegionalRiskScore).where(
+        select(RegionalRiskScore)
+        .where(
             RegionalRiskScore.h3_cell_id == cell_id,
             RegionalRiskScore.crop_code == crop_code,
             RegionalRiskScore.target_code == target_code,
-        ).order_by(RegionalRiskScore.valid_from.desc())
+        )
+        .order_by(RegionalRiskScore.valid_from.desc())
     ).first()
 
     if row is None:

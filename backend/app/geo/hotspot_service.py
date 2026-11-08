@@ -13,10 +13,9 @@ Key principles:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.h3_config import default_resolution
@@ -26,11 +25,8 @@ from app.db.models import (
     HotspotCluster,
     HotspotHistory,
     PestReport,
-    RegionalRiskScore,
-    WeatherCellRecord,
 )
-from app.geo import h3_get_resolution, k_ring
-
+from app.geo import k_ring
 
 # ---------------------------------------------------------------------------
 # Classification thresholds
@@ -48,11 +44,11 @@ DEFAULT_HOTSPOT_THRESHOLDS = {
 
 # Weight factors for hotspot score calculation
 HOTOPSOT_WEIGHTS = {
-    "report_count": 0.20,        # Volume of reports
-    "unique_farms": 0.25,        # Unique affected farms (deduplicated)
-    "verified_ratio": 0.25,      # Proportion of verified reports
-    "severity": 0.20,            # Severity distribution
-    "recency": 0.10,             # How recent the reports are
+    "report_count": 0.20,  # Volume of reports
+    "unique_farms": 0.25,  # Unique affected farms (deduplicated)
+    "verified_ratio": 0.25,  # Proportion of verified reports
+    "severity": 0.20,  # Severity distribution
+    "recency": 0.10,  # How recent the reports are
 }
 
 # Severity weights for scoring
@@ -73,7 +69,7 @@ REPORTER_WEIGHTS = {
 }
 
 
-def classify_hotspot(score: float, thresholds: Optional[dict] = None) -> str:
+def classify_hotspot(score: float, thresholds: dict | None = None) -> str:
     """Classify a hotspot score into LOW/MODERATE/HIGH/CRITICAL."""
     thresholds = thresholds or DEFAULT_HOTSPOT_THRESHOLDS
     if score >= thresholds["critical"]:
@@ -91,7 +87,7 @@ def compute_hotspot_score(
     verified_farms: int,
     severity_distribution: dict,
     recency_factor: float,
-    config: Optional[dict] = None,
+    config: dict | None = None,
 ) -> float:
     """Compute a composite hotspot score (0.0 to 1.0).
 
@@ -104,7 +100,6 @@ def compute_hotspot_score(
     """
     config = config or {}
     weights = config.get("weights", HOTOPSOT_WEIGHTS)
-    thresholds = config.get("thresholds", DEFAULT_HOTSPOT_THRESHOLDS)
 
     # Normalize report count (logarithmic scale to prevent saturation)
     report_score = min(1.0, total_reports / 20.0)  # 20+ reports = max score
@@ -133,13 +128,15 @@ def compute_hotspot_score(
 
 
 def compute_recency_factor(
-    most_recent_report: Optional[datetime],
+    most_recent_report: datetime | None,
     window_days: int = 14,
 ) -> float:
     """Compute recency factor (0.0 to 1.0) based on most recent report."""
     if most_recent_report is None:
         return 0.0
-    now = datetime.now(most_recent_report.tzinfo) if most_recent_report.tzinfo else datetime.utcnow()
+    now = (
+        datetime.now(most_recent_report.tzinfo) if most_recent_report.tzinfo else datetime.utcnow()
+    )
     age_days = (now - most_recent_report).total_seconds() / 86400.0
     if age_days <= 0:
         return 1.0
@@ -158,10 +155,10 @@ def calculate_hotspot_for_cell(
     h3_cell_id: str,
     target_type: str,
     target_code: str,
-    crop_code: Optional[str] = None,
-    resolution: Optional[int] = None,
-    thresholds: Optional[dict] = None,
-    weather_risk_factor: Optional[float] = None,
+    crop_code: str | None = None,
+    resolution: int | None = None,
+    thresholds: dict | None = None,
+    weather_risk_factor: float | None = None,
 ) -> dict:
     """Calculate hotspot score and classification for a single H3 cell.
 
@@ -255,7 +252,10 @@ def calculate_hotspot_for_cell(
         verified_farms=verified_farms,
         severity_distribution=severity_dist,
         recency_factor=recency,
-        config={"weights": HOTOPSOT_WEIGHTS, "thresholds": thresholds or DEFAULT_HOTSPOT_THRESHOLDS},
+        config={
+            "weights": HOTOPSOT_WEIGHTS,
+            "thresholds": thresholds or DEFAULT_HOTSPOT_THRESHOLDS,
+        },
     )
 
     # Apply weather risk factor as a multiplier (weather is a risk factor, not proof)
@@ -300,10 +300,10 @@ def update_hotspot_cluster(
     h3_cell_id: str,
     target_type: str,
     target_code: str,
-    crop_code: Optional[str] = None,
-    resolution: Optional[int] = None,
-    thresholds: Optional[dict] = None,
-    weather_risk_factor: Optional[float] = None,
+    crop_code: str | None = None,
+    resolution: int | None = None,
+    thresholds: dict | None = None,
+    weather_risk_factor: float | None = None,
     is_demo: bool = False,
 ) -> HotspotCluster:
     """Calculate and persist a hotspot cluster for an H3 cell."""
@@ -386,8 +386,8 @@ def record_hotspot_history(
     classification: str,
     score: float,
     unique_affected_farms: int,
-    weather_risk_factor: Optional[float] = None,
-    snapshot_date: Optional[datetime] = None,
+    weather_risk_factor: float | None = None,
+    snapshot_date: datetime | None = None,
     is_demo: bool = False,
 ) -> HotspotHistory:
     """Record a hotspot history snapshot for trend analysis."""
@@ -430,8 +430,8 @@ def recalculate_all_hotspots(
     db: Session,
     target_type: str,
     target_code: str,
-    crop_code: Optional[str] = None,
-    resolution: Optional[int] = None,
+    crop_code: str | None = None,
+    resolution: int | None = None,
     is_demo: bool = False,
 ) -> list[HotspotCluster]:
     """Recalculate hotspots for all cells that have reports for a target."""

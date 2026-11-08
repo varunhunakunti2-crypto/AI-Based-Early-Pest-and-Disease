@@ -6,10 +6,9 @@ and observations, confirming or rejecting disease/pest detections.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Query, Path, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,9 +17,8 @@ from app.api.deps import get_principal, require_roles
 from app.core.errors import ApiError
 from app.db.models import (
     ExpertVerification,
-    InspectionResult,
     GeoObservation,
-    User,
+    InspectionResult,
 )
 from app.db.session import get_db
 
@@ -28,27 +26,27 @@ router = APIRouter(tags=["expert-verification"])
 
 
 class ExpertVerificationRequest(BaseModel):
-    observation_id: Optional[str] = Field(default=None)
-    inspection_result_id: Optional[str] = Field(default=None)
+    observation_id: str | None = Field(default=None)
+    inspection_result_id: str | None = Field(default=None)
     verification_status: str = Field(
         pattern="^(confirmed|probable|rejected|duplicate|needs_visit|unresolved)$"
     )
-    corrected_target_code: Optional[str] = Field(default=None, max_length=80)
-    corrected_severity: Optional[str] = Field(
+    corrected_target_code: str | None = Field(default=None, max_length=80)
+    corrected_severity: str | None = Field(
         default=None, pattern="^(none|low|moderate|high|critical)$"
     )
-    notes: Optional[str] = Field(default=None, max_length=2000)
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class ExpertVerificationResponse(BaseModel):
     verification_id: str
-    observation_id: Optional[str]
-    inspection_result_id: Optional[str]
+    observation_id: str | None
+    inspection_result_id: str | None
     verified_by: str
     verification_status: str
-    corrected_target_code: Optional[str]
-    corrected_severity: Optional[str]
-    notes: Optional[str]
+    corrected_target_code: str | None
+    corrected_severity: str | None
+    notes: str | None
     verified_at: str
 
 
@@ -79,7 +77,7 @@ def verify_observation(
         if obs is None:
             raise ApiError(404, "not_found", "Observation not found")
         obs.verification_status = payload.verification_status
-        obs.updated_at = datetime.now(timezone.utc)
+        obs.updated_at = datetime.now(UTC)
         db.flush()
 
     if payload.inspection_result_id:
@@ -142,10 +140,8 @@ def get_verification(
 
 @router.get("/pending")
 def list_pending_verifications(
-    target_type: Optional[str] = Query(
-        default=None, pattern="^(disease|pest)$"
-    ),
-    target_code: Optional[str] = Query(default=None),
+    target_type: str | None = Query(default=None, pattern="^(disease|pest)$"),
+    target_code: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     user=Depends(require_roles("expert", "pathologist", "agronomist", "admin")),
     db: Session = Depends(get_db),
@@ -171,9 +167,7 @@ def list_pending_verifications(
                 "reporter_type": r.reporter_type,
                 "verification_status": r.verification_status,
                 "severity": r.severity,
-                "ai_confidence": (
-                    float(r.ai_confidence) if r.ai_confidence else None
-                ),
+                "ai_confidence": (float(r.ai_confidence) if r.ai_confidence else None),
             }
             for r in rows
         ],

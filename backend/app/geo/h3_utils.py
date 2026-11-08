@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Optional, Sequence
 
 # Earth radius in metres (WGS84 mean radius)
 EARTH_RADIUS_M = 6_371_008.8
@@ -83,7 +82,7 @@ def _encode_cell(resolution: int, base_cell: int, index: int) -> int:
         raise H3Error(f"Resolution {resolution} out of range [0, {MAX_RESOLUTION}]")
     if not (0 <= base_cell < NUM_BASE_CELLS):
         raise H3Error(f"Base cell {base_cell} out of range [0, {NUM_BASE_CELLS})")
-    max_index = 7 ** resolution - 1
+    max_index = 7**resolution - 1
     if not (0 <= index <= max_index):
         raise H3Error(f"Index {index} out of range [0, {max_index}] for resolution {resolution}")
 
@@ -110,7 +109,7 @@ def h3_is_valid(cell: int) -> bool:
         return False
     if not (0 <= base_cell < NUM_BASE_CELLS):
         return False
-    max_index = 7 ** resolution - 1
+    max_index = 7**resolution - 1
     return 0 <= index <= max_index
 
 
@@ -157,17 +156,42 @@ def _icosahedron_face(lat_rad: float, lng_rad: float) -> tuple[int, float, float
     # Icosahedron vertex coordinates (golden ratio)
     phi = (1.0 + math.sqrt(5.0)) / 2.0
     vertices = [
-        (-1.0, phi, 0.0), (1.0, phi, 0.0), (-1.0, -phi, 0.0), (1.0, -phi, 0.0),
-        (0.0, -1.0, phi), (0.0, 1.0, phi), (0.0, -1.0, -phi), (0.0, 1.0, -phi),
-        (phi, 0.0, -1.0), (phi, 0.0, 1.0), (-phi, 0.0, -1.0), (-phi, 0.0, 1.0),
+        (-1.0, phi, 0.0),
+        (1.0, phi, 0.0),
+        (-1.0, -phi, 0.0),
+        (1.0, -phi, 0.0),
+        (0.0, -1.0, phi),
+        (0.0, 1.0, phi),
+        (0.0, -1.0, -phi),
+        (0.0, 1.0, -phi),
+        (phi, 0.0, -1.0),
+        (phi, 0.0, 1.0),
+        (-phi, 0.0, -1.0),
+        (-phi, 0.0, 1.0),
     ]
 
     # 20 faces of the icosahedron (vertex indices)
     faces = [
-        (0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11),
-        (1, 5, 9), (5, 11, 4), (11, 10, 2), (10, 7, 6), (7, 1, 8),
-        (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9),
-        (4, 9, 5), (2, 10, 11), (6, 7, 10), (8, 7, 1), (9, 4, 11),  # note: simplified
+        (0, 11, 5),
+        (0, 5, 1),
+        (0, 1, 7),
+        (0, 7, 10),
+        (0, 10, 11),
+        (1, 5, 9),
+        (5, 11, 4),
+        (11, 10, 2),
+        (10, 7, 6),
+        (7, 1, 8),
+        (3, 9, 4),
+        (3, 4, 2),
+        (3, 2, 6),
+        (3, 6, 8),
+        (3, 8, 9),
+        (4, 9, 5),
+        (2, 10, 11),
+        (6, 7, 10),
+        (8, 7, 1),
+        (9, 4, 11),  # note: simplified
     ]
     # The actual icosahedron has 20 faces; we use 20 here for completeness.
 
@@ -191,7 +215,11 @@ def _icosahedron_face(lat_rad: float, lng_rad: float) -> tuple[int, float, float
     # Simplified: use barycentric-ish coordinates within the face
     # For this implementation, we compute (u, v) as the position within
     # the triangular face using a simplified approach.
-    fa, fb, fc = vertices[faces[best_face][0]], vertices[faces[best_face][1]], vertices[faces[best_face][2]]
+    fa, fb, fc = (
+        vertices[faces[best_face][0]],
+        vertices[faces[best_face][1]],
+        vertices[faces[best_face][2]],
+    )
 
     # Project point onto the face plane along the face normal
     # Then compute barycentric coordinates
@@ -288,9 +316,8 @@ def h3_to_geo(cell: int) -> tuple[float, float]:
         raise H3Error(f"Invalid H3 cell ID: {cell}")
     resolution, base_cell, index = _decode_cell(cell)
 
-    # Inverse mapping: compute face and (u, v) from base_cell and index
+    # Inverse mapping: compute face from base_cell and index
     face = base_cell // 6
-    cell_on_face = base_cell % 6
 
     # Reconstruct (u, v) from index digits
     u = 0.0
@@ -317,15 +344,40 @@ def h3_to_geo(cell: int) -> tuple[float, float]:
     # Map back to icosahedron vertex coordinates
     phi = (1.0 + math.sqrt(5.0)) / 2.0
     vertices = [
-        (-1.0, phi, 0.0), (1.0, phi, 0.0), (-1.0, -phi, 0.0), (1.0, -phi, 0.0),
-        (0.0, -1.0, phi), (0.0, 1.0, phi), (0.0, -1.0, -phi), (0.0, 1.0, -phi),
-        (phi, 0.0, -1.0), (phi, 0.0, 1.0), (-phi, 0.0, -1.0), (-phi, 0.0, 1.0),
+        (-1.0, phi, 0.0),
+        (1.0, phi, 0.0),
+        (-1.0, -phi, 0.0),
+        (1.0, -phi, 0.0),
+        (0.0, -1.0, phi),
+        (0.0, 1.0, phi),
+        (0.0, -1.0, -phi),
+        (0.0, 1.0, -phi),
+        (phi, 0.0, -1.0),
+        (phi, 0.0, 1.0),
+        (-phi, 0.0, -1.0),
+        (-phi, 0.0, 1.0),
     ]
     faces = [
-        (0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11),
-        (1, 5, 9), (5, 11, 4), (11, 10, 2), (10, 7, 6), (7, 1, 8),
-        (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9),
-        (4, 9, 5), (2, 10, 11), (6, 7, 10), (8, 7, 1), (9, 4, 11),
+        (0, 11, 5),
+        (0, 5, 1),
+        (0, 1, 7),
+        (0, 7, 10),
+        (0, 10, 11),
+        (1, 5, 9),
+        (5, 11, 4),
+        (11, 10, 2),
+        (10, 7, 6),
+        (7, 1, 8),
+        (3, 9, 4),
+        (3, 4, 2),
+        (3, 2, 6),
+        (3, 6, 8),
+        (3, 8, 9),
+        (4, 9, 5),
+        (2, 10, 11),
+        (6, 7, 10),
+        (8, 7, 1),
+        (9, 4, 11),
     ]
     fa, fb, fc = [vertices[i] for i in faces[face % len(faces)]]
 
@@ -379,7 +431,9 @@ def h3_to_geo_boundary(cell: int) -> list[tuple[float, float]]:
     # Convert radius to degrees (approx, varies by latitude)
     lat_rad = math.radians(center_lat)
     deg_per_km_lat = 1.0 / 111.0
-    deg_per_km_lng = 1.0 / (111.0 * math.cos(lat_rad)) if abs(math.cos(lat_rad)) > 0.01 else 1.0 / 111.0
+    deg_per_km_lng = (
+        1.0 / (111.0 * math.cos(lat_rad)) if abs(math.cos(lat_rad)) > 0.01 else 1.0 / 111.0
+    )
 
     radius_lat_deg = radius_km * deg_per_km_lat
     radius_lng_deg = radius_km * deg_per_km_lng
@@ -500,7 +554,7 @@ def h3_to_children(cell: int, child_resolution: int) -> list[int]:
 
     # Expand index: each parent cell has 7 children per level
     levels = child_resolution - resolution
-    multiplier = 7 ** levels
+    multiplier = 7**levels
     start_index = index * multiplier
     end_index = start_index + multiplier
 
@@ -533,10 +587,7 @@ def great_circle_distance_m(lat1: float, lng1: float, lat2: float, lng2: float) 
     lat2_r, lng2_r = math.radians(lat2), math.radians(lng2)
     dlat = lat2_r - lat1_r
     dlng = lng2_r - lng1_r
-    a = (
-        math.sin(dlat / 2) ** 2
-        + math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlng / 2) ** 2
-    )
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlng / 2) ** 2
     c = 2 * math.asin(math.sqrt(min(1.0, a)))
     return EARTH_RADIUS_M * c
 
@@ -579,7 +630,7 @@ def generate_grid(
 # Backend switching (for official h3 library)
 # ---------------------------------------------------------------------------
 
-_H3_BACKEND: Optional[str] = None  # "pure" or "official"
+_H3_BACKEND: str | None = None  # "pure" or "official"
 
 
 def set_h3_backend(backend: str) -> None:
@@ -590,7 +641,7 @@ def set_h3_backend(backend: str) -> None:
     global _H3_BACKEND
     if backend == "official":
         try:
-            import h3 as _h3  # type: ignore
+            import h3 as _h3  # type: ignore  # noqa: F401
         except ImportError as exc:
             raise H3Error(
                 "Official h3 backend requested but the 'h3' package is not installed. "
